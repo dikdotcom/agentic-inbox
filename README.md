@@ -23,17 +23,16 @@ https://github.com/cloudflare/agentic-inbox/issues/4#issuecomment-4269118513
 
      [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/agentic-inbox)
 
-2. **Configure Cloudflare Access** -- Enable [one-click Cloudflare Access](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/) on your Worker under Settings > Domains & Routes. The modal will show your `POLICY_AUD` and `TEAM_DOMAIN` values. `TEAM_DOMAIN` can be either your Access team URL or the full `.../cdn-cgi/access/certs` URL. **You must set these as secrets for your Worker.**
+2. **Configure auth** -- Set the `SESSION_SECRET` secret (`wrangler secret put SESSION_SECRET`) to a strong random string (`openssl rand -hex 32`). Set `ADMIN_EMAILS` to your own email so you automatically own all existing mailboxes, and optionally set `MCP_TOKEN` if you want the `/mcp` endpoint enabled. See `.dev.vars.example`.
 3. **Set up Email Routing** -- In the Cloudflare dashboard, go to your domain > Email Routing and create a catch-all rule that forwards to this Worker
 4. **Enable Email Service** -- The worker needs the `send_email` binding to send outbound emails. See [Email Service docs](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
 5. **Create a mailbox** -- Visit your deployed app and create a mailbox for any address on your domain (e.g. `hello@example.com`)
 
-### Troubleshooting Access
+### Troubleshooting Auth
 
-1. If you see `Invalid or expired Access token`, that usually means `POLICY_AUD` or `TEAM_DOMAIN` secrets are incorrect.
-   * Resolution: [turn Access off and back on for the Worker to get the Access modal again](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/), then reset your Worker secrets to the latest `POLICY_AUD` and `TEAM_DOMAIN` values shown there.
-2. If you see `Cloudflare Access must be configured in production`, this application is intentionally enforcing Cloudflare Access so your inbox is not exposed to anyone on the internet.
-   * Resolution: enable Access using [one-click Cloudflare Access for Workers](https://developers.cloudflare.com/changelog/post/2025-10-03-one-click-access-for-workers/), then set the `POLICY_AUD` and `TEAM_DOMAIN` Worker secrets from the modal values.
+1. If you see `Invalid email or password`, the credentials are wrong or the user doesn't exist. Registration is enabled by default (`ALLOW_REGISTRATION=true`); disable it once your accounts are created.
+2. If you get `403 Forbidden: you do not have access to this mailbox`, your user isn't granted that mailbox. Mailboxes created before auth was introduced need an admin grant — set `ADMIN_EMAILS` to your email and log in again to auto-claim all existing mailboxes.
+3. The `/mcp` endpoint returns `503` unless `MCP_TOKEN` is configured. This is intentional (fail closed).
 
 ## Features
 
@@ -48,7 +47,7 @@ https://github.com/cloudflare/agentic-inbox/issues/4#issuecomment-4269118513
 - **Frontend:** React 19, React Router v7, Tailwind CSS, Zustand, TipTap, `@cloudflare/kumo`
 - **Backend:** Hono, Cloudflare Workers, Durable Objects (SQLite), R2, Email Routing
 - **AI Agent:** Cloudflare Agents SDK (`AIChatAgent`), AI SDK v6, Workers AI (`@cf/moonshotai/kimi-k2.5`), `react-markdown` + `remark-gfm`
-- **Auth:** Cloudflare Access JWT validation (required outside local development)
+- **Auth:** Built-in email + password accounts (PBKDF2-SHA256 via WebCrypto) with HttpOnly session cookies. Replaces Cloudflare Access as the trust boundary.
 
 ## Getting Started
 
@@ -61,6 +60,11 @@ npm run dev
 
 1. Set your domain in `wrangler.jsonc`
 2. Create an R2 bucket named `agentic-inbox`: `wrangler r2 bucket create agentic-inbox`
+3. Set the auth secret and admin emails (see `.dev.vars.example`):
+   - `wrangler secret put SESSION_SECRET` (required, `openssl rand -hex 32`)
+   - `wrangler secret put MCP_TOKEN` (optional, enables `/mcp`)
+   - `wrangler secret put ADMIN_EMAILS` (optional, e.g. `you@example.com` — auto-claims all mailboxes)
+   - `wrangler secret put ALLOW_REGISTRATION` (optional, `false` after your account exists)
 
 ### Deploy
 
@@ -74,9 +78,8 @@ npm run deploy
 - [Email Routing](https://developers.cloudflare.com/email-routing/) enabled for receiving
 - [Email Service](https://developers.cloudflare.com/email-service/) enabled for sending
 - [Workers AI](https://developers.cloudflare.com/workers-ai/) enabled (for the agent)
-- [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) configured for deployed/shared environments (required in production)
 
-Any user who passes the shared Cloudflare Access policy can access all mailboxes in this app by design. This includes the MCP server at `/mcp` -- external AI tools (Claude Code, Cursor, etc.) connected via MCP can operate on any mailbox by passing a `mailboxId` parameter. There is no per-mailbox authorization; the Cloudflare Access policy is the single trust boundary.
+Access is controlled per-account with email + password login. Users only see mailboxes they own (or that were granted to them). The MCP server at `/mcp` is additionally protected by a shared bearer token (`MCP_TOKEN`) and is disabled unless that token is set.
 
 ## Architecture
 

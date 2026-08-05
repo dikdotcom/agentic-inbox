@@ -99,6 +99,16 @@ const api = {
 	getConfig: () =>
 		get<{ domains: string[]; emailAddresses: string[] }>("/api/v1/config"),
 
+	// Auth
+	me: () =>
+		get<{ user: { id: string; email: string } }>("/api/auth/me"),
+	login: (email: string, password: string) =>
+		post<{ user: { id: string; email: string } }>("/api/auth/login", { email, password }),
+	register: (email: string, password: string) =>
+		post<{ user: { id: string; email: string } }>("/api/auth/register", { email, password }),
+	logout: () =>
+		post<{ ok: boolean }>("/api/auth/logout"),
+
 	// Mailboxes
 	listMailboxes: () => get<Mailbox[]>("/api/v1/mailboxes"),
 	createMailbox: (email: string, name: string, settings?: unknown) =>

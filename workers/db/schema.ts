@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Cloudflare, Inc.
-// Licensed under the Apache 2.0 license found in the LICENSE file or at:
-//     https://opensource.org/licenses/Apache-2.0
-
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const folders = sqliteTable("folders", {
 	id: text("id").primaryKey(),
@@ -42,3 +38,26 @@ export const attachments = sqliteTable("attachments", {
 	content_id: text("content_id"),
 	disposition: text("disposition"),
 });
+
+// -- Auth (stored in UsersDO, not MailboxDO) -------------------------
+
+export const users = sqliteTable("users", {
+	id: text("id").primaryKey(),
+	email: text("email").notNull().unique(),
+	password_hash: text("password_hash").notNull(),
+	created_at: text("created_at").notNull(),
+});
+
+export const userMailboxes = sqliteTable(
+	"user_mailboxes",
+	{
+		user_id: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		mailbox_id: text("mailbox_id").notNull(),
+		role: text("role").notNull().default("owner"),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.user_id, t.mailbox_id] }),
+	}),
+);

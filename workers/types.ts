@@ -1,8 +1,13 @@
-// Copyright (c) 2026 Cloudflare, Inc.
-// Licensed under the Apache 2.0 license found in the LICENSE file or at:
-//     https://opensource.org/licenses/Apache-2.0
+import type { UsersDO } from "./usersDO";
+
+export interface AuthUser {
+	id: string;
+	email: string;
+}
 
 export interface Env extends Cloudflare.Env {
-	POLICY_AUD: string;
-	TEAM_DOMAIN: string;
+	// Auth (replaces Cloudflare Access)
+	USERS: DurableObjectNamespace<UsersDO>;
+	// Optional shared token protecting the MCP endpoint. If unset, /mcp is disabled.
+	MCP_TOKEN?: string;
 }

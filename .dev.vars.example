@@ -1,3 +1,16 @@
-# Cloudflare Access (required in production). TEAM_DOMAIN may be the base Access URL or the full /cdn-cgi/access/certs URL.
-POLICY_AUD=your-access-policy-audience-tag
-TEAM_DOMAIN=https://your-team.cloudflareaccess.com
+# Auth secret (required). MUST be a strong random string, e.g.:
+#   openssl rand -hex 32
+# In production set via `wrangler secret put SESSION_SECRET` (never commit it).
+# In local dev you can also set it here for `wrangler dev`.
+SESSION_SECRET=dev-only-insecure-secret-change-me
+
+# Optional: comma-separated emails that auto-own all mailboxes on login/register.
+# Set this so mailboxes created before auth was introduced stay accessible.
+#ADMIN_EMAILS=you@example.com
+
+# Optional: enable/disable public registration ("true" or "false").
+#ALLOW_REGISTRATION=true
+
+# Optional: shared bearer token that protects the MCP endpoint (/mcp).
+# If unset, /mcp is disabled entirely.
+#MCP_TOKEN=some-random-token

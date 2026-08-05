@@ -4,15 +4,16 @@
 
 import { routeAgentRequest } from "agents";
 import { Hono } from "hono";
-import { jwtVerify, createRemoteJWKSet } from "jose";
 import { createRequestHandler } from "react-router";
 import { app as apiApp, receiveEmail } from "./index";
 import { EmailMCP } from "./mcp";
+import { authMiddleware, authRoutes, type AuthEnv } from "./auth";
 import type { Env } from "./types";
 
 export { MailboxDO } from "./durableObject";
 export { EmailAgent } from "./agent";
 export { EmailMCP } from "./mcp";
+export { UsersDO } from "./usersDO";
 
 declare module "react-router" {
 	export interface AppLoadContext {
@@ -28,67 +29,41 @@ const requestHandler = createRequestHandler(
 	import.meta.env.MODE,
 );
 
-function getAccessUrls(teamDomain: string) {
-	const certsPath = "/cdn-cgi/access/certs";
-	const teamUrl = new URL(teamDomain);
-	const issuer = teamUrl.origin;
-	const certsUrl = teamUrl.pathname.endsWith(certsPath)
-		? teamUrl
-		: new URL(certsPath, issuer);
-
-	return { issuer, certsUrl };
-}
-
 // Main app that wraps the API and adds React Router fallback
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<AuthEnv>();
 
-// Cloudflare Access JWT validation middleware (production only)
-app.use("*", async (c, next) => {
-	// Skip validation in development
-	if (import.meta.env.DEV) {
-		return next();
-	}
+// Global auth gate (replaces Cloudflare Access). Valid session cookie is
+// required for everything except the login page, auth endpoints, and assets.
+app.use("*", authMiddleware);
 
-	const { POLICY_AUD, TEAM_DOMAIN } = c.env;
-
-	// Fail closed in production if Access is not configured.
-	if (!POLICY_AUD || !TEAM_DOMAIN) {
-		return c.text(
-			"Cloudflare Access must be configured in production. Set POLICY_AUD and TEAM_DOMAIN.",
-			500,
-		);
-	}
-
-	const token = c.req.header("cf-access-jwt-assertion");
+// MCP server endpoint — used by AI coding tools (ProtoAgent, Claude Code, Cursor, etc.)
+// Protected by a shared bearer token (MCP_TOKEN). If MCP_TOKEN is not set,
+// the endpoint is disabled entirely (fail closed).
+app.all("/mcp", async (c, next) => {
+	const token = c.env.MCP_TOKEN;
 	if (!token) {
-		return c.text("Missing required CF Access JWT", 403);
+		return c.text("MCP is disabled: MCP_TOKEN is not configured", 503);
 	}
-
-	try {
-		const { issuer, certsUrl } = getAccessUrls(TEAM_DOMAIN);
-		const JWKS = createRemoteJWKSet(certsUrl);
-		await jwtVerify(token, JWKS, {
-			issuer,
-			audience: POLICY_AUD,
-		});
-	} catch {
-		return c.text("Invalid or expired Access token", 403);
+	const auth = c.req.header("authorization") ?? "";
+	if (auth !== `Bearer ${token}`) {
+		return c.text("Unauthorized", 401);
 	}
-
-	// Authorization model note: once a teammate passes the shared Cloudflare
-	// Access policy, they can access all mailboxes in this app by design.
+	return next();
+});
+app.all("/mcp/*", async (c, next) => {
+	const token = c.env.MCP_TOKEN;
+	if (!token) {
+		return c.text("MCP is disabled: MCP_TOKEN is not configured", 503);
+	}
+	const auth = c.req.header("authorization") ?? "";
+	if (auth !== `Bearer ${token}`) {
+		return c.text("Unauthorized", 401);
+	}
 	return next();
 });
 
-// MCP server endpoint — used by AI coding tools (ProtoAgent, Claude Code, Cursor, etc.)
-// Must be before API routes and React Router catch-all
-const mcpHandler = EmailMCP.serve("/mcp", { binding: "EMAIL_MCP" });
-app.all("/mcp", async (c) => {
-	return mcpHandler.fetch(c.req.raw, c.env, c.executionCtx as ExecutionContext);
-});
-app.all("/mcp/*", async (c) => {
-	return mcpHandler.fetch(c.req.raw, c.env, c.executionCtx as ExecutionContext);
-});
+// Auth endpoints (login/register/logout/me)
+app.route("/api/auth", authRoutes);
 
 // Mount the API routes
 app.route("/", apiApp);

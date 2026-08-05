@@ -1,19 +1,16 @@
-// Copyright (c) 2026 Cloudflare, Inc.
-// Licensed under the Apache 2.0 license found in the LICENSE file or at:
-//     https://opensource.org/licenses/Apache-2.0
-
 /**
  * Hono middleware to handle repetitive Mailbox Durable Object instantiation.
- * Checks if the mailbox exists in R2, then instantiates the DO stub
- * and attaches it to the Hono context (`c.var.mailboxStub`).
+ * Checks that the caller owns the mailbox (auth), verifies it exists in R2,
+ * then instantiates the DO stub and attaches it to the Hono context (`c.var.mailboxStub`).
  */
 import { createMiddleware } from "hono/factory";
 import type { MailboxDO } from "../durableObject";
-import type { Env } from "../types";
+import type { Env, AuthUser } from "../types";
 
 export type MailboxContext = {
 	Bindings: Env;
 	Variables: {
+		user: AuthUser;
 		mailboxStub: DurableObjectStub<MailboxDO>;
 	};
 };
@@ -22,6 +19,13 @@ export const requireMailbox = createMiddleware<MailboxContext>(async (c, next) =
 	const rawId = c.req.param("mailboxId");
 	if (!rawId) return c.json({ error: "Mailbox ID required" }, 400);
 	const mailboxId = decodeURIComponent(rawId);
+
+	// Verify the authenticated user owns this mailbox
+	const usersStub = c.env.USERS.get(c.env.USERS.idFromName("primary"));
+	const owns = await usersStub.userOwnsMailbox(c.var.user.id, mailboxId);
+	if (!owns) {
+		return c.json({ error: "Forbidden: you do not have access to this mailbox" }, 403);
+	}
 
 	// Verify mailbox exists
 	const key = `mailboxes/${mailboxId}.json`;

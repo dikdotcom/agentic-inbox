@@ -12,7 +12,7 @@ import {
 } from "@cloudflare/kumo";
 import { WarningIcon } from "@phosphor-icons/react";
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { forwardRef, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import {
 	isRouteErrorResponse,
 	Links,
@@ -21,8 +21,10 @@ import {
 	Link as RouterLink,
 	Scripts,
 	ScrollRestoration,
+	useLocation,
 } from "react-router";
 import { ApiError } from "~/services/api";
+import api from "~/services/api";
 import "./index.css";
 
 function makeQueryClient() {
@@ -113,6 +115,19 @@ export default function App() {
 	// Use useState to ensure each SSR request gets a fresh client while the
 	// browser reuses the same singleton across navigations.
 	const [queryClient] = useState(getQueryClient);
+	const location = useLocation();
+
+	// Client-side auth guard. The server middleware also redirects HTML
+	// requests to /login, but SPA client-side navigations need this fallback.
+	useEffect(() => {
+		if (location.pathname.startsWith("/login")) return;
+		api.me().catch((err: unknown) => {
+			if (err instanceof ApiError && err.status === 401) {
+				window.location.href = "/login";
+			}
+		});
+	}, [location.pathname]);
+
 	return (
 		<QueryClientProvider client={queryClient}>
 			<LinkProvider component={KumoLink}>

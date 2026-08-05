@@ -95,8 +95,12 @@ app.get("/api/v1/config", (c) => {
 // -- Mailboxes ------------------------------------------------------
 
 app.get("/api/v1/mailboxes", async (c) => {
+	const usersStub = c.env.USERS.get(c.env.USERS.idFromName("primary"));
+	const owned = await usersStub.listMailboxesForUser(c.var.user.id);
+	const ownedSet = new Set(owned);
 	const allMailboxes = await listMailboxes(c.env.BUCKET);
-	return c.json(allMailboxes.map((m) => ({ ...m, name: m.id })));
+	const mine = allMailboxes.filter((m) => ownedSet.has(m.id));
+	return c.json(mine.map((m) => ({ ...m, name: m.id })));
 });
 
 app.post("/api/v1/mailboxes", async (c) => {
@@ -113,6 +117,9 @@ app.post("/api/v1/mailboxes", async (c) => {
 	await c.env.BUCKET.put(key, JSON.stringify(finalSettings));
 	const stub = c.env.MAILBOX.get(c.env.MAILBOX.idFromName(email));
 	await stub.getFolders();
+	// Grant the creator ownership so it shows up in their mailbox list.
+	const usersStub = c.env.USERS.get(c.env.USERS.idFromName("primary"));
+	await usersStub.grantMailbox(c.var.user.id, email, "owner");
 	return c.json({ id: email, email, name, settings: finalSettings }, 201);
 });
 
@@ -137,6 +144,9 @@ app.delete("/api/v1/mailboxes/:mailboxId", async (c) => {
 	const key = `mailboxes/${mailboxId}.json`;
 	if (!(await c.env.BUCKET.head(key))) return c.json({ error: "Not found" }, 404);
 	await c.env.BUCKET.delete(key); // TODO: also delete DO data and R2 attachment blobs
+	// Remove ownership grants so the mailbox disappears from every user's list.
+	const usersStub = c.env.USERS.get(c.env.USERS.idFromName("primary"));
+	await usersStub.deleteMailboxGrants(mailboxId);
 	return c.body(null, 204);
 });
 
