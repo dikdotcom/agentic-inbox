@@ -20,7 +20,7 @@ check("salt makes hashes unique", hash !== hash2);
 check("verify against round-2 hash", await verifyPassword("s3cret-pass", hash2));
 
 // --- Session JWT ---
-const secret = "test-secret-0123456789abcdef";
+const secret = "test-secret-0123456789abcdefghijklmnopqrstuvwxyz";
 const token = await signSession({ id: "u1", email: "a@b.com" }, secret);
 const verified = await verifySession(token, secret);
 check("signSession + verifySession roundtrip", verified && verified.id === "u1" && verified.email === "a@b.com");

@@ -14,6 +14,19 @@ export type AuthEnv = {
 export const SESSION_COOKIE = "session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const PBKDF2_ITERATIONS = 100_000;
+const MIN_SECRET_LENGTH = 32;
+
+// Works under Vite bundling (import.meta.env.DEV) and plain Node (env undefined).
+const IS_DEV = (import.meta as { env?: Record<string, unknown> }).env?.DEV === true;
+
+/**
+ * A session secret is only acceptable if it's long enough and not the
+ * dev-only placeholder from wrangler.jsonc vars. Production deploys that
+ * forget `wrangler secret put SESSION_SECRET` must fail closed.
+ */
+export function validSessionSecret(secret: string | undefined): boolean {
+	return !!secret && secret.length >= MIN_SECRET_LENGTH && !secret.includes("dev-only-insecure");
+}
 
 function b64url(bytes: Uint8Array): string {
 	return btoa(String.fromCharCode(...bytes));
@@ -125,6 +138,15 @@ function isPublicPath(path: string): boolean {
  */
 export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
 	const { SESSION_SECRET } = c.env;
+
+	// Fail closed in production if SESSION_SECRET is missing or the dev placeholder.
+	if (!IS_DEV && !validSessionSecret(SESSION_SECRET)) {
+		return c.text(
+			"Auth is not configured: set SESSION_SECRET via `wrangler secret put SESSION_SECRET`.",
+			500,
+		);
+	}
+
 	const token = getCookie(c, SESSION_COOKIE);
 	const user = token && SESSION_SECRET
 		? await verifySession(token, SESSION_SECRET)
@@ -177,6 +199,9 @@ function setSessionCookie(c: Context<AuthEnv>, token: string) {
 export const authRoutes = new Hono<AuthEnv>();
 
 authRoutes.post("/register", async (c) => {
+	if (!IS_DEV && !validSessionSecret(c.env.SESSION_SECRET)) {
+		return c.text("Auth is not configured: set SESSION_SECRET via `wrangler secret put SESSION_SECRET`.", 500);
+	}
 	const parsed = parseCredentials(await c.req.json().catch(() => null));
 	if (!parsed.data) return c.json({ error: parsed.error }, 400);
 	const { email, password } = parsed.data;
@@ -207,6 +232,9 @@ authRoutes.post("/register", async (c) => {
 });
 
 authRoutes.post("/login", async (c) => {
+	if (!IS_DEV && !validSessionSecret(c.env.SESSION_SECRET)) {
+		return c.text("Auth is not configured: set SESSION_SECRET via `wrangler secret put SESSION_SECRET`.", 500);
+	}
 	const parsed = parseCredentials(await c.req.json().catch(() => null));
 	if (!parsed.data) return c.json({ error: parsed.error }, 400);
 	const { email, password } = parsed.data;
