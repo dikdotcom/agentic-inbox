@@ -2,14 +2,72 @@
 @import "@cloudflare/kumo/styles/tailwind";
 @import "tailwindcss";
 
+/* Self-hosted fonts (no CDN hotlinking) */
+@import "@fontsource/syne/700.css";
+@import "@fontsource/syne/800.css";
+@import "@fontsource/dm-mono/300.css";
+@import "@fontsource/dm-mono/400.css";
+@import "@fontsource/dm-mono/500.css";
+@import "@fontsource/source-serif-4/400.css";
+@import "@fontsource/source-serif-4/600.css";
+@import "@fontsource/source-serif-4/400-italic.css";
+
 :root {
   color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------
+   Vmail-style theme override (dark) — warm gold accent
+   ------------------------------------------------------------------ */
+[data-mode="dark"] {
+  --color-kumo-recessed: #09090b;
+  --color-kumo-base: #0f0f12;
+  --color-kumo-control: #17171c;
+  --color-kumo-elevated: #1e1e25;
+  --color-kumo-surface: #17171c;
+  --color-kumo-fill: #1e1e25;
+  --color-kumo-fill-hover: #26262f;
+  --color-kumo-tint: #1e1e25;
+  --color-kumo-overlay: #26262f;
+  --color-kumo-interact: #26262f;
+  --color-kumo-line: #2a2a35;
+  --color-kumo-ring: #c8a44e;
+
+  --color-kumo-brand: #c8a44e;
+  --color-kumo-brand-hover: #d4b05a;
+  --color-kumo-contrast: #09090b;
+
+  --color-kumo-danger: #e05252;
+  --color-kumo-danger-tint: rgba(224, 82, 82, 0.12);
+  --color-kumo-success: #52c07a;
+  --color-kumo-success-tint: rgba(82, 192, 122, 0.12);
+  --color-kumo-info: #5294e0;
+  --color-kumo-info-tint: rgba(82, 148, 224, 0.12);
+  --color-kumo-warning: #e67e22;
+  --color-kumo-warning-tint: rgba(230, 126, 34, 0.12);
+
+  --color-kumo-default: #e8e4dc;
+  --color-kumo-strong: #f4f1ea;
+  --color-kumo-subtle: #9a9590;
+  --color-kumo-inactive: #5c5852;
 }
 
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Display headings in Syne (Vmail style) */
+h1, h2, h3, h4 {
+  font-family: "Syne", "DM Mono", ui-monospace, sans-serif;
+}
+
+/* Email body text in Source Serif 4 (Vmail style) */
+.font-serif-body,
+.prose-email {
+  font-family: "Source Serif 4", Georgia, serif;
 }
 
 /* Slim, theme-aware scrollbars */
@@ -27,6 +85,17 @@ body {
 }
 *::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Subtle film-grain noise overlay (Vmail) */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
 }
 
 /* TipTap list styles */

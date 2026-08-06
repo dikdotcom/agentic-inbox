@@ -279,11 +279,29 @@ export default function EmailListRoute() {
 		return name || "?";
 	};
 
+	const AVATAR_GRADIENTS = [
+		"linear-gradient(135deg, #e05252, #c0392b)",
+		"linear-gradient(135deg, #5294e0, #2980b9)",
+		"linear-gradient(135deg, #52c07a, #27ae60)",
+		"linear-gradient(135deg, #c8a44e, #a0833d)",
+		"linear-gradient(135deg, #9b59b6, #8e44ad)",
+		"linear-gradient(135deg, #e67e22, #d35400)",
+		"linear-gradient(135deg, #1abc9c, #16a085)",
+	];
+
+	const getAvatarGradient = (email: Email): string => {
+		const src = email.sender || email.participants || email.id;
+		let h = 0;
+		for (let i = 0; i < src.length; i++) h = (h * 31 + src.charCodeAt(i)) >>> 0;
+		return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
+	};
+
 	return (
-		<MailboxSplitView
-			selectedEmailId={selectedEmailId}
-			isComposing={isComposing}
-		>
+		<>
+			<MailboxSplitView
+				selectedEmailId={selectedEmailId}
+				isComposing={isComposing}
+			>
 				{/* Folder header */}
 				<div className="flex items-center justify-between px-4 py-3.5 border-b border-kumo-line shrink-0 md:px-5">
 					<h1 className="text-lg font-semibold text-kumo-default">
@@ -340,32 +358,39 @@ export default function EmailListRoute() {
 											}
 										}}
 										className={`group relative flex items-center gap-3 w-full text-left cursor-pointer transition-colors border-b border-kumo-line px-4 py-3 md:px-5 md:py-3.5 ${
-																				isPanelOpen ? "md:px-4" : ""
-																			} ${isSelected ? "bg-kumo-tint" : "hover:bg-kumo-tint/60"}`}
-																		>
-																			{isSelected && (
-																				<div className="absolute left-0 top-0 bottom-0 w-0.5 bg-kumo-brand" />
-																			)}
+												isPanelOpen ? "md:px-4" : ""
+											} ${hasUnread(email) ? "bg-kumo-control" : ""} ${
+												isSelected ? "bg-kumo-tint" : "hover:bg-kumo-tint/60"
+											}`}
+										>
+											{/* Unread / selected accent bar */}
+											{(isSelected || hasUnread(email)) && (
+												<div
+													className={`absolute left-0 top-0 bottom-0 bg-kumo-brand ${
+														hasUnread(email) ? "w-[3px]" : "w-0.5"
+													}`}
+												/>
+											)}
 
-																			{/* Avatar + unread indicator */}
-																			<div className="relative shrink-0 flex items-center justify-center">
-																				<div
-																					className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${
-																						hasUnread(email)
-																							? "bg-kumo-brand text-white"
-																							: "bg-kumo-fill text-kumo-strong"
-																					}`}
-																				>
-																					{getInitials(email)}
-																				</div>
-																				{hasUnread(email) && (
-																					<span
-																						className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 ${
-																							isSelected ? "border-kumo-tint" : "border-kumo-base"
-																						} bg-kumo-brand`}
-																					/>
-																				)}
-																			</div>
+											{/* Avatar */}
+											<div className="relative shrink-0 flex items-center justify-center">
+												<div
+													className="flex h-9 w-9 items-center justify-center rounded-[10px] text-xs font-bold"
+													style={{
+														background: getAvatarGradient(email),
+														color: "#09090b",
+													}}
+												>
+													{getInitials(email)}
+												</div>
+												{hasUnread(email) && (
+													<span
+														className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 ${
+															isSelected ? "border-kumo-tint" : "border-kumo-base"
+														} bg-kumo-brand`}
+													/>
+												)}
+											</div>
 
 																			{/* Star */}
 																			<button
@@ -484,6 +509,24 @@ export default function EmailListRoute() {
 						/>
 					</div>
 				)}
-		</MailboxSplitView>
+				</MailboxSplitView>
+
+			{/* Compose FAB — mobile only (Vmail style) */}
+			{!isComposing && (
+				<button
+					type="button"
+					onClick={() => startCompose()}
+					aria-label="Compose"
+					className="fixed bottom-6 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full border-none cursor-pointer md:hidden"
+					style={{
+						background: "linear-gradient(135deg, #c8a44e, #a0833d)",
+						boxShadow: "0 8px 24px rgba(200,164,78,0.25)",
+						color: "#09090b",
+					}}
+				>
+					<PencilSimpleIcon size={24} weight="bold" />
+				</button>
+			)}
+		</>
 	);
 }
