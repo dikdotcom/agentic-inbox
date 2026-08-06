@@ -13,7 +13,7 @@
 		// Auth values (SESSION_SECRET, ADMIN_EMAILS, ALLOW_REGISTRATION, MCP_TOKEN)
 		// are managed as Worker SECRETS, not vars — see README "Configuration".
 		// ALLOW_REGISTRATION defaults to "true" when unset.
-		"DOMAINS": "example.com",
+		"DOMAINS": "dika.my.id",
 		"EMAIL_ADDRESSES": []
 	},
 	"send_email": [
