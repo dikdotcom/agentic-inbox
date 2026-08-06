@@ -61,7 +61,23 @@ export class UsersDO extends DurableObject<Env> {
 			password_hash: passwordHash,
 			created_at: new Date().toISOString(),
 		});
-		return this.getUserById(id);
+	}
+
+	/** Delete a user and all of their mailbox grants. Returns false if not found. */
+	async deleteUserByEmail(email: string): Promise<boolean> {
+		const user = await this.db
+			.select()
+			.from(schema.users)
+			.where(eq(schema.users.email, email.toLowerCase()))
+			.get();
+		if (!user) return false;
+		// Delete grants explicitly (SQLite FK cascade is not enforced here).
+		await this.db
+			.delete(schema.userMailboxes)
+			.where(eq(schema.userMailboxes.user_id, user.id))
+			.run();
+		await this.db.delete(schema.users).where(eq(schema.users.id, user.id)).run();
+		return true;
 	}
 
 	// -- Mailbox ownership -------------------------------------------

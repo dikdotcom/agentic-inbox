@@ -267,3 +267,25 @@ authRoutes.get("/me", async (c) => {
 	if (!user) return c.json({ error: "Unauthorized" }, 401);
 	return c.json({ user });
 });
+
+/**
+ * Admin-only: delete a user account by email. The caller must be in
+ * ADMIN_EMAILS. Used to clean up stale/test accounts.
+ */
+authRoutes.delete("/users", async (c) => {
+	const user = c.get("user");
+	if (!user) return c.json({ error: "Unauthorized" }, 401);
+	const admins = (c.env.ADMIN_EMAILS || "")
+		.split(",")
+		.map((e) => e.trim().toLowerCase())
+		.filter(Boolean);
+	if (!admins.includes(user.email.toLowerCase())) {
+		return c.json({ error: "Forbidden" }, 403);
+	}
+	const body = await c.req.json().catch(() => ({}));
+	const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+	if (!email) return c.json({ error: "email is required" }, 400);
+	const usersStub = c.env.USERS.get(c.env.USERS.idFromName("primary"));
+	const deleted = await usersStub.deleteUserByEmail(email);
+	return deleted ? c.json({ ok: true }) : c.json({ error: "User not found" }, 404);
+});
