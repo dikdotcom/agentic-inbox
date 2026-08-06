@@ -268,6 +268,17 @@ export default function EmailListRoute() {
 		return email.sender.split("@")[0];
 	};
 
+	const getInitials = (email: Email): string => {
+		const name = formatParticipants(email)
+			.split(/[\s.@_+]/)
+			.map((w) => w[0])
+			.filter(Boolean)
+			.slice(0, 2)
+			.join("")
+			.toUpperCase();
+		return name || "?";
+	};
+
 	return (
 		<MailboxSplitView
 			selectedEmailId={selectedEmailId}
@@ -328,36 +339,53 @@ export default function EmailListRoute() {
 												handleRowClick(email);
 											}
 										}}
-										className={`group flex items-center gap-3 w-full text-left cursor-pointer transition-colors border-b border-kumo-line px-4 py-2.5 md:px-6 md:py-3 ${
-											isPanelOpen ? "md:px-4 md:py-2.5" : ""
-										} ${isSelected ? "bg-kumo-tint" : "hover:bg-kumo-tint"}`}
-									>
-										{/* Unread dot */}
-										<div className="w-2.5 shrink-0 flex justify-center">
-											{hasUnread(email) && (
-												<div className="h-2 w-2 rounded-full bg-kumo-brand" />
-											)}
-										</div>
+										className={`group relative flex items-center gap-3 w-full text-left cursor-pointer transition-colors border-b border-kumo-line px-4 py-3 md:px-5 md:py-3.5 ${
+																				isPanelOpen ? "md:px-4" : ""
+																			} ${isSelected ? "bg-kumo-tint" : "hover:bg-kumo-tint/60"}`}
+																		>
+																			{isSelected && (
+																				<div className="absolute left-0 top-0 bottom-0 w-0.5 bg-kumo-brand" />
+																			)}
 
-										{/* Star */}
-										<button
-											type="button"
-											className="shrink-0 p-0.5 bg-transparent border-0 cursor-pointer"
-											onClick={(e) => {
-												e.stopPropagation();
-												toggleStar(e, email);
-											}}
-										>
-											<StarIcon
-												size={16}
-												weight={email.starred ? "fill" : "regular"}
-												className={
-													email.starred
-														? "text-kumo-warning"
-														: "text-kumo-subtle hover:text-kumo-warning"
-												}
-											/>
-										</button>
+																			{/* Avatar + unread indicator */}
+																			<div className="relative shrink-0 flex items-center justify-center">
+																				<div
+																					className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${
+																						hasUnread(email)
+																							? "bg-kumo-brand text-white"
+																							: "bg-kumo-fill text-kumo-strong"
+																					}`}
+																				>
+																					{getInitials(email)}
+																				</div>
+																				{hasUnread(email) && (
+																					<span
+																						className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 ${
+																							isSelected ? "border-kumo-tint" : "border-kumo-base"
+																						} bg-kumo-brand`}
+																					/>
+																				)}
+																			</div>
+
+																			{/* Star */}
+																			<button
+																				type="button"
+																				className="shrink-0 p-0.5 bg-transparent border-0 cursor-pointer rounded hover:bg-kumo-tint"
+																				onClick={(e) => {
+																					e.stopPropagation();
+																					toggleStar(e, email);
+																				}}
+																			>
+																				<StarIcon
+																					size={16}
+																					weight={email.starred ? "fill" : "regular"}
+																					className={
+																						email.starred
+																							? "text-kumo-warning"
+																							: "text-kumo-inactive hover:text-kumo-warning"
+																					}
+																				/>
+																			</button>
 
 										{/* Content */}
 										<div className="min-w-0 flex-1">
