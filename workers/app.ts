@@ -8,6 +8,7 @@ import { createRequestHandler } from "react-router";
 import { app as apiApp, receiveEmail } from "./index";
 import { EmailMCP } from "./mcp";
 import { authMiddleware, authRoutes, type AuthEnv } from "./auth";
+import { adminRoutes } from "./routes/admin";
 import type { Env } from "./types";
 
 export { MailboxDO } from "./durableObject";
@@ -64,6 +65,9 @@ app.all("/mcp/*", async (c, next) => {
 
 // Auth endpoints (login/register/logout/me)
 app.route("/api/auth", authRoutes);
+
+// Admin-only endpoints (superadmin = email in ADMIN_EMAILS)
+app.route("/api/v1/admin", adminRoutes);
 
 // Mount the API routes
 app.route("/", apiApp);

@@ -199,7 +199,7 @@ function setSessionCookie(c: Context<AuthEnv>, token: string) {
 export const authRoutes = new Hono<AuthEnv>();
 
 authRoutes.post("/register", async (c) => {
-	if (!IS_DEV && !validSessionSecret(c.env.SESSION_SECRET)) {
+	if (!IS_DEV && !validSessionSecret(c.env.SESSION_SECRET!)) {
 		return c.text("Auth is not configured: set SESSION_SECRET via `wrangler secret put SESSION_SECRET`.", 500);
 	}
 	const parsed = parseCredentials(await c.req.json().catch(() => null));
@@ -226,13 +226,13 @@ authRoutes.post("/register", async (c) => {
 		await usersStub.claimAllMailboxes(id);
 	}
 
-	const token = await signSession({ id, email: normalized }, c.env.SESSION_SECRET);
+	const token = await signSession({ id, email: normalized }, c.env.SESSION_SECRET!);
 	setSessionCookie(c, token);
 	return c.json({ user: { id, email: normalized } }, 201);
 });
 
 authRoutes.post("/login", async (c) => {
-	if (!IS_DEV && !validSessionSecret(c.env.SESSION_SECRET)) {
+	if (!IS_DEV && !validSessionSecret(c.env.SESSION_SECRET!)) {
 		return c.text("Auth is not configured: set SESSION_SECRET via `wrangler secret put SESSION_SECRET`.", 500);
 	}
 	const parsed = parseCredentials(await c.req.json().catch(() => null));
@@ -252,7 +252,7 @@ authRoutes.post("/login", async (c) => {
 		await usersStub.claimAllMailboxes(user.id);
 	}
 
-	const token = await signSession({ id: user.id, email: normalized }, c.env.SESSION_SECRET);
+	const token = await signSession({ id: user.id, email: normalized }, c.env.SESSION_SECRET!);
 	setSessionCookie(c, token);
 	return c.json({ user: { id: user.id, email: normalized } });
 });
@@ -265,7 +265,11 @@ authRoutes.post("/logout", (c) => {
 authRoutes.get("/me", async (c) => {
 	const user = c.get("user");
 	if (!user) return c.json({ error: "Unauthorized" }, 401);
-	return c.json({ user });
+	const admins = (c.env.ADMIN_EMAILS || "")
+		.split(",")
+		.map((e) => e.trim().toLowerCase())
+		.filter(Boolean);
+	return c.json({ user, isAdmin: admins.includes(user.email.toLowerCase()) });
 });
 
 /**

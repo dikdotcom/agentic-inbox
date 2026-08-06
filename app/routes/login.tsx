@@ -1,5 +1,5 @@
 import { Button, Input, Text } from "@cloudflare/kumo";
-import { EnvelopeIcon } from "@phosphor-icons/react";
+import { EnvelopeIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { type FormEvent, useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -54,7 +54,8 @@ export default function LoginRoute() {
 			}
 			navigate("/", { replace: true });
 		} catch (err: unknown) {
-			const message = (err instanceof Error ? err.message : null) || "Something went wrong";
+			const message =
+				(err instanceof Error ? err.message : null) || "Something went wrong";
 			setError(message);
 		} finally {
 			setSubmitting(false);
@@ -62,99 +63,118 @@ export default function LoginRoute() {
 	};
 
 	return (
-		<div className="min-h-screen bg-kumo-recessed flex items-center justify-center px-4">
-			<div className="w-full max-w-sm">
+		<div className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-kumo-recessed">
+			{/* Ambient background glow */}
+			<div
+				aria-hidden
+				className="pointer-events-none absolute inset-0"
+				style={{
+					background:
+						"radial-gradient(600px circle at 50% -10%, color-mix(in oklab, var(--color-kumo-brand) 14%, transparent), transparent 60%), radial-gradient(500px circle at 85% 110%, color-mix(in oklab, var(--color-kumo-brand) 8%, transparent), transparent 60%)",
+				}}
+			/>
+
+			<div className="relative w-full max-w-[400px]">
+				{/* Brand */}
 				<div className="mb-8 flex flex-col items-center text-center">
-					<div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-kumo-fill">
-						<EnvelopeIcon size={26} weight="duotone" className="text-kumo-default" />
+					<div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-kumo-brand to-kumo-brand-hover shadow-lg shadow-kumo-brand/25">
+						<EnvelopeIcon size={28} weight="fill" className="text-white" />
 					</div>
-					<h1 className="text-xl font-bold text-kumo-default">Agentic Inbox</h1>
-					<p className="text-sm text-kumo-subtle mt-1">
+					<h1 className="text-2xl font-bold tracking-tight text-kumo-default">
+						Agentic Inbox
+					</h1>
+					<p className="text-sm text-kumo-subtle mt-1.5">
 						{mode === "login"
-							? "Sign in to access your mailboxes"
-							: "Create an account to get started"}
+							? "Sign in to your mailboxes"
+							: "Create your account to get started"}
 					</p>
 				</div>
 
-				<form
-					onSubmit={handleSubmit}
-					className="rounded-xl border border-kumo-line bg-kumo-base p-6 space-y-4"
-				>
-					{error && (
-						<Text variant="error" size="sm">
-							{error}
-						</Text>
-					)}
+				{/* Card */}
+				<div className="rounded-2xl border border-kumo-line bg-kumo-control shadow-xl shadow-black/20 p-8">
+					<form onSubmit={handleSubmit} className="space-y-5">
+						{error && (
+							<Text variant="error" size="sm">
+								{error}
+							</Text>
+						)}
 
-					<div className="space-y-1.5">
-						<span className="text-sm font-medium text-kumo-default block">Email</span>
-						<Input
-							aria-label="Email"
-							type="email"
-							placeholder="you@example.com"
-							size="sm"
-							autoComplete="email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-						/>
-					</div>
-
-					<div className="space-y-1.5">
-						<span className="text-sm font-medium text-kumo-default block">Password</span>
-						<Input
-							aria-label="Password"
-							type="password"
-							placeholder="••••••••"
-							size="sm"
-							autoComplete={mode === "login" ? "current-password" : "new-password"}
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-						/>
-					</div>
-
-					{mode === "register" && (
 						<div className="space-y-1.5">
 							<span className="text-sm font-medium text-kumo-default block">
-								Confirm Password
+								Email
 							</span>
 							<Input
-								aria-label="Confirm password"
-								type="password"
-								placeholder="••••••••"
-								size="sm"
-								autoComplete="new-password"
-								value={confirm}
-								onChange={(e) => setConfirm(e.target.value)}
+								aria-label="Email"
+								type="email"
+								placeholder="you@example.com"
+								autoComplete="email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
 								required
 							/>
 						</div>
-					)}
 
-					<Button
-						type="submit"
-						variant="primary"
-						size="sm"
-						className="w-full"
-						loading={submitting}
-					>
-						{mode === "login" ? "Sign In" : "Create Account"}
-					</Button>
+						<div className="space-y-1.5">
+							<span className="text-sm font-medium text-kumo-default block">
+								Password
+							</span>
+							<Input
+								aria-label="Password"
+								type="password"
+								placeholder="••••••••"
+								autoComplete={mode === "login" ? "current-password" : "new-password"}
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								required
+							/>
+						</div>
 
-					<button
-						type="button"
-						onClick={() => {
-							setMode(mode === "login" ? "register" : "login");
-							setError(null);
-						}}
-						className="w-full text-center text-sm text-kumo-subtle hover:text-kumo-default transition-colors"
-					>
-						{mode === "login"
-							? "No account? Create one"
-							: "Already have an account? Sign in"}
-					</button>
-				</form>
+						{mode === "register" && (
+							<div className="space-y-1.5">
+								<span className="text-sm font-medium text-kumo-default block">
+									Confirm Password
+								</span>
+								<Input
+									aria-label="Confirm password"
+									type="password"
+									placeholder="••••••••"
+									autoComplete="new-password"
+									value={confirm}
+									onChange={(e) => setConfirm(e.target.value)}
+									required
+								/>
+							</div>
+						)}
+
+						<Button
+							type="submit"
+							variant="primary"
+							className="w-full !h-10 text-[15px]"
+							loading={submitting}
+						>
+							{mode === "login" ? "Sign In" : "Create Account"}
+						</Button>
+
+						<button
+							type="button"
+							onClick={() => {
+								setMode(mode === "login" ? "register" : "login");
+								setError(null);
+							}}
+							className="w-full text-center text-sm text-kumo-subtle hover:text-kumo-default transition-colors cursor-pointer"
+						>
+							{mode === "login"
+								? "No account? Create one"
+								: "Already have an account? Sign in"}
+						</button>
+					</form>
+				</div>
+
+				{/* Footer */}
+				<p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-kumo-subtle">
+					<ShieldCheckIcon size={13} />
+					Self-hosted on Cloudflare — your mail stays yours
+				</p>
 			</div>
 		</div>
 	);

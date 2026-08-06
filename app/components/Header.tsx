@@ -3,9 +3,10 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { Button, Input, Tooltip } from "@cloudflare/kumo";
-import { GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon, SignOutIcon, XIcon } from "@phosphor-icons/react";
+import { GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon, ShieldIcon, SignOutIcon, XIcon } from "@phosphor-icons/react";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useUIStore } from "~/hooks/useUIStore";
 import api from "~/services/api";
 
@@ -55,6 +56,13 @@ export default function Header() {
 	};
 
 	const isSettingsActive = location.pathname.includes("/settings");
+
+	// Admin flag for the admin panel shortcut
+	const { data: me } = useQuery({
+		queryKey: ["auth", "me"],
+		queryFn: () => api.me(),
+		retry: false,
+	});
 
 	return (
 		<header className="flex items-center gap-2 px-3 py-2.5 bg-kumo-base border-b border-kumo-line sticky top-0 z-10 md:px-5 md:gap-4">
@@ -120,6 +128,17 @@ export default function Header() {
 			)}
 
 			<div className="flex items-center gap-1 ml-auto shrink-0">
+				{me?.isAdmin && (
+					<Tooltip content="Admin panel" side="bottom" asChild>
+						<Button
+							variant={location.pathname === "/admin" ? "secondary" : "ghost"}
+							shape="square"
+							icon={<ShieldIcon size={20} />}
+							onClick={() => navigate("/admin")}
+							aria-label="Admin panel"
+						/>
+					</Tooltip>
+				)}
 				<Tooltip content="Sign out" side="bottom" asChild>
 					<Button
 						variant="ghost"

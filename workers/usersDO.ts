@@ -1,5 +1,4 @@
 import { DurableObject } from "cloudflare:workers";
-import type { DurableObjectState } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { eq, and } from "drizzle-orm";
 import * as schema from "./db/schema";
@@ -118,6 +117,28 @@ export class UsersDO extends DurableObject<Env> {
 			)
 			.get();
 		return !!row;
+	}
+
+	async listUsers(): Promise<{ id: string; email: string; created_at: string }[]> {
+		return this.db
+			.select({ id: schema.users.id, email: schema.users.email, created_at: schema.users.created_at })
+			.from(schema.users)
+			.all();
+	}
+
+	async resetPassword(email: string, passwordHash: string): Promise<boolean> {
+		const user = await this.db
+			.select({ id: schema.users.id })
+			.from(schema.users)
+			.where(eq(schema.users.email, email.toLowerCase()))
+			.get();
+		if (!user) return false;
+		await this.db
+			.update(schema.users)
+			.set({ password_hash: passwordHash })
+			.where(eq(schema.users.id, user.id))
+			.run();
+		return true;
 	}
 
 	async listMailboxesForUser(userId: string): Promise<string[]> {

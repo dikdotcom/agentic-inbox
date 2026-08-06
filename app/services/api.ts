@@ -92,6 +92,20 @@ interface EmailListResponse {
 	totalCount: number;
 }
 
+interface AdminUser {
+	id: string;
+	email: string;
+	created_at: string;
+	isAdmin: boolean;
+	mailboxes: string[];
+}
+
+interface AdminMailbox {
+	id: string;
+	settings: Record<string, unknown>;
+	owners: string[];
+}
+
 // ---------- API client ----------
 
 const api = {
@@ -101,7 +115,7 @@ const api = {
 
 	// Auth
 	me: () =>
-		get<{ user: { id: string; email: string } }>("/api/auth/me"),
+		get<{ user: { id: string; email: string }; isAdmin?: boolean }>("/api/auth/me"),
 	login: (email: string, password: string) =>
 		post<{ user: { id: string; email: string } }>("/api/auth/login", { email, password }),
 	register: (email: string, password: string) =>
@@ -170,6 +184,34 @@ const api = {
 	// Search
 	searchEmails: (mailboxId: string, params: Record<string, string>) =>
 		get<EmailListResponse | Email[]>(`/api/v1/mailboxes/${mailboxId}/search`, { params }),
+
+	// Admin (superadmin only)
+	listAdminUsers: () =>
+		get<{ users: AdminUser[] }>("/api/v1/admin/users"),
+	createAdminUser: (email: string, password: string) =>
+		post<{ user: { id: string; email: string } }>("/api/v1/admin/users", { email, password }),
+	resetAdminPassword: (email: string, password: string) =>
+		post<{ ok: boolean }>("/api/v1/admin/users/reset-password", { email, password }),
+	deleteAdminUser: (email: string) =>
+		request<{ ok: boolean }>("/api/v1/admin/users", {
+			method: "DELETE",
+			body: JSON.stringify({ email }),
+		}),
+	listAdminMailboxes: () =>
+		get<{ mailboxes: AdminMailbox[] }>("/api/v1/admin/mailboxes"),
+	createAdminMailbox: (email: string, name: string, ownerEmail?: string) =>
+		post<Mailbox>("/api/v1/admin/mailboxes", { email, name, ownerEmail }),
+	deployAdminMailboxSettings: (mailboxId: string, settings: unknown) =>
+		put<{ id: string; settings: unknown }>(
+			`/api/v1/admin/mailboxes/${mailboxId}`,
+			{ settings },
+		),
+	assignAdminMailbox: (mailboxId: string, email: string) =>
+		post<{ ok: boolean }>(`/api/v1/admin/mailboxes/${mailboxId}/assign`, { email }),
+	unassignAdminMailbox: (mailboxId: string, email: string) =>
+		del<{ ok: boolean }>(`/api/v1/admin/mailboxes/${mailboxId}/assign/${encodeURIComponent(email)}`),
+	deleteAdminMailbox: (mailboxId: string) =>
+		del<void>(`/api/v1/admin/mailboxes/${mailboxId}`),
 };
 
 export default api;
