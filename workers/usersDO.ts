@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import type { DurableObjectState } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { eq, and } from "drizzle-orm";
 import * as schema from "./db/schema";
@@ -14,7 +15,11 @@ import type { Env } from "./types";
 export class UsersDO extends DurableObject<Env> {
 	private db = drizzle(this.ctx.storage, { schema });
 
-	async init() {
+	constructor(state: DurableObjectState, env: Env) {
+		super(state, env);
+		// Create the auth tables at construction (idempotent), mirroring
+		// MailboxDO. Without this the SQL tables never get created and every
+		// query throws -> 500.
 		this.ctx.storage.sql.exec(`
 			CREATE TABLE IF NOT EXISTS users (
 				id TEXT PRIMARY KEY,
