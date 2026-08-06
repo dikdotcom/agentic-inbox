@@ -1,5 +1,11 @@
 import { Button, Input, Text } from "@cloudflare/kumo";
-import { EnvelopeIcon, ShieldCheckIcon } from "@phosphor-icons/react";
+import {
+	EnvelopeIcon,
+	LightningIcon,
+	LockKeyIcon,
+	RobotIcon,
+	ShieldCheckIcon,
+} from "@phosphor-icons/react";
 import { type FormEvent, useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +14,24 @@ import api from "~/services/api";
 export function meta() {
 	return [{ title: "Sign in — Agentic Inbox" }];
 }
+
+const FEATURES = [
+	{
+		icon: RobotIcon,
+		title: "AI agent for your mail",
+		text: "Draft, summarize and triage emails with a built-in agent — right from your inbox.",
+	},
+	{
+		icon: LockKeyIcon,
+		title: "Private by default",
+		text: "Self-hosted on your own Cloudflare account. Your mail never touches third-party servers.",
+	},
+	{
+		icon: LightningIcon,
+		title: "Fast, modern, responsive",
+		text: "A clean three-pane experience that adapts to any screen — phone to desktop.",
+	},
+];
 
 export default function LoginRoute() {
 	const navigate = useNavigate();
@@ -63,36 +87,84 @@ export default function LoginRoute() {
 	};
 
 	return (
-		<div className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-kumo-recessed">
-			{/* Ambient background glow */}
-			<div
-				aria-hidden
-				className="pointer-events-none absolute inset-0"
-				style={{
-					background:
-						"radial-gradient(600px circle at 50% -10%, color-mix(in oklab, var(--color-kumo-brand) 14%, transparent), transparent 60%), radial-gradient(500px circle at 85% 110%, color-mix(in oklab, var(--color-kumo-brand) 8%, transparent), transparent 60%)",
-				}}
-			/>
+		<div className="min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr] bg-kumo-recessed">
+			{/* Branding panel (desktop left / mobile top) */}
+			<div className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-kumo-brand via-kumo-brand-hover to-kumo-recessed p-8 lg:p-14">
+				{/* Decorative glow */}
+				<div
+					aria-hidden
+					className="pointer-events-none absolute inset-0"
+					style={{
+						background:
+							"radial-gradient(700px circle at 15% 20%, rgba(255,255,255,0.16), transparent 55%), radial-gradient(500px circle at 90% 90%, rgba(0,0,0,0.25), transparent 60%)",
+					}}
+				/>
 
-			<div className="relative w-full max-w-[400px]">
-				{/* Brand */}
-				<div className="mb-8 flex flex-col items-center text-center">
-					<div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-kumo-brand to-kumo-brand-hover shadow-lg shadow-kumo-brand/25">
-						<EnvelopeIcon size={28} weight="fill" className="text-white" />
+				<div className="relative flex items-center gap-3">
+					<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+						<EnvelopeIcon size={22} weight="fill" className="text-white" />
 					</div>
-					<h1 className="text-2xl font-bold tracking-tight text-kumo-default">
+					<span className="text-lg font-bold tracking-tight text-white">
 						Agentic Inbox
-					</h1>
-					<p className="text-sm text-kumo-subtle mt-1.5">
-						{mode === "login"
-							? "Sign in to your mailboxes"
-							: "Create your account to get started"}
-					</p>
+					</span>
 				</div>
 
-				{/* Card */}
-				<div className="rounded-2xl border border-kumo-line bg-kumo-control shadow-xl shadow-black/20 p-8">
-					<form onSubmit={handleSubmit} className="space-y-5">
+				<div className="relative my-10 lg:my-0">
+					<h1 className="max-w-md text-3xl font-bold leading-tight tracking-tight text-white lg:text-[2.6rem]">
+						Email, handled — by you and your agent.
+					</h1>
+					<p className="mt-4 max-w-md text-[15px] leading-relaxed text-white/75">
+						Your mailboxes, your domain, your data. Sign in to pick up where
+						you left off.
+					</p>
+
+					<ul className="mt-10 hidden space-y-5 lg:block">
+						{FEATURES.map((f) => (
+							<li key={f.title} className="flex gap-4">
+								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/12 backdrop-blur">
+									<f.icon size={20} className="text-white" />
+								</div>
+								<div>
+									<p className="text-sm font-semibold text-white">{f.title}</p>
+									<p className="mt-0.5 max-w-sm text-sm leading-relaxed text-white/65">
+										{f.text}
+									</p>
+								</div>
+							</li>
+						))}
+					</ul>
+				</div>
+
+				<p className="relative flex items-center gap-1.5 text-xs text-white/55">
+					<ShieldCheckIcon size={13} />
+					Self-hosted on Cloudflare — your mail stays yours
+				</p>
+			</div>
+
+			{/* Form panel */}
+			<div className="flex items-center justify-center bg-kumo-recessed px-4 py-12 lg:px-10">
+				<div className="w-full max-w-sm">
+					<div className="mb-8 lg:hidden">
+						<div className="flex items-center gap-2.5">
+							<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-kumo-brand to-kumo-brand-hover">
+								<EnvelopeIcon size={18} weight="fill" className="text-white" />
+							</div>
+							<span className="text-base font-bold tracking-tight text-kumo-default">
+								Agentic Inbox
+							</span>
+						</div>
+					</div>
+
+					<h2 className="text-2xl font-bold tracking-tight text-kumo-default">
+						{mode === "login" ? "Welcome back" : "Create your account"}
+					</h2>
+					<p className="mt-1.5 text-sm text-kumo-subtle">
+						{mode === "login"
+							? "Sign in to access your mailboxes"
+							: "Set up your account to get started"}
+					</p>
+
+					<form onSubmit={handleSubmit} className="mt-8 space-y-5">
 						{error && (
 							<Text variant="error" size="sm">
 								{error}
@@ -169,12 +241,6 @@ export default function LoginRoute() {
 						</button>
 					</form>
 				</div>
-
-				{/* Footer */}
-				<p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-kumo-subtle">
-					<ShieldCheckIcon size={13} />
-					Self-hosted on Cloudflare — your mail stays yours
-				</p>
 			</div>
 		</div>
 	);
