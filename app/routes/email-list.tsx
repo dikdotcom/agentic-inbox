@@ -563,7 +563,7 @@ function MobileNav({ folder, mailboxId }: { folder?: string; mailboxId: string }
 							(active ? "text-kumo-brand" : "text-kumo-inactive")
 						}
 					>
-						{item.icon({ size: 22 })}
+						<item.icon size={22} />
 						<span className="text-[9px] uppercase tracking-wider">{item.label}</span>
 					</button>
 				);
