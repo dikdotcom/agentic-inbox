@@ -39,6 +39,7 @@ interface EmailPanelToolbarProps {
 	onMove: (folderId: string) => void;
 	onViewSource: () => void;
 	onDelete: () => void;
+	onDeleteThread: () => void;
 }
 
 export default function EmailPanelToolbar({
@@ -58,6 +59,7 @@ export default function EmailPanelToolbar({
 	onMove,
 	onViewSource,
 	onDelete,
+	onDeleteThread,
 }: EmailPanelToolbarProps) {
 	return (
 		<div className="flex items-center gap-1 px-3 py-2 border-b border-kumo-line shrink-0 md:px-4">
@@ -177,6 +179,17 @@ export default function EmailPanelToolbar({
 						icon={<TrashIcon size={18} />}
 						onClick={onDelete}
 						aria-label="Delete"
+					/>
+				</Tooltip>
+				<Tooltip content="Delete entire conversation" side="bottom" asChild>
+					<Button
+						variant="ghost"
+						shape="square"
+						size="sm"
+						icon={<TrashIcon size={18} weight="fill" />}
+						onClick={onDeleteThread}
+						aria-label="Delete entire conversation"
+						className="text-kumo-danger"
 					/>
 				</Tooltip>
 				<Tooltip content="Close" side="bottom" asChild>

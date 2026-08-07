@@ -112,7 +112,7 @@ app.post("/api/v1/mailboxes", async (c) => {
 	}
 	const key = `mailboxes/${email}.json`;
 	if (await c.env.BUCKET.head(key)) return c.json({ error: "Mailbox already exists" }, 409);
-	const defaultSettings = { fromName: name, forwarding: { enabled: false, email: "" }, signature: { enabled: false, text: "" }, autoReply: { enabled: false, subject: "", message: "" } };
+	const defaultSettings = { fromName: name, forwarding: { enabled: false, email: "" }, signature: { enabled: false, text: "" }, autoReply: { enabled: false, subject: "", message: "" }, autoDraft: true };
 	const finalSettings = { ...defaultSettings, ...settings };
 	await c.env.BUCKET.put(key, JSON.stringify(finalSettings));
 	const stub = c.env.MAILBOX.get(c.env.MAILBOX.idFromName(email));
@@ -256,6 +256,19 @@ app.delete("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
 	const attachments = await c.var.mailboxStub.deleteEmail(id);
 	if (attachments === null) return c.json({ error: "Not found" }, 404);
 	if (attachments.length > 0) await c.env.BUCKET.delete(attachments.map((att: any) => `attachments/${id}/${att.id}/${att.filename}`));
+	return c.body(null, 204);
+});
+
+// Delete every email in a thread at once (whole conversation)
+app.delete("/api/v1/mailboxes/:mailboxId/threads/:threadId", async (c: AppContext) => {
+	const threadId = c.req.param("threadId")!;
+	const attachments = await c.var.mailboxStub.deleteEmailsByThread(threadId);
+	if (attachments === null) return c.json({ error: "Not found" }, 404);
+	if (attachments.length > 0) {
+		await c.env.BUCKET.delete(
+			attachments.map((att: any) => `attachments/${att.emailId}/${att.id}/${att.filename}`),
+		);
+	}
 	return c.body(null, 204);
 });
 

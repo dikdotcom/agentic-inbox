@@ -216,6 +216,18 @@ export function useDeleteEmail() {
 	});
 }
 
+export function useDeleteThread() {
+	const invalidate = useInvalidateEmailData();
+	return useMutation({
+		mutationFn: ({
+			mailboxId,
+			threadId,
+		}: { mailboxId: string; threadId: string }) =>
+			api.deleteThread(mailboxId, threadId),
+		onSuccess: (_data, { mailboxId }) => invalidate(mailboxId),
+	});
+}
+
 export function useMoveEmail() {
 	const invalidate = useInvalidateEmailData();
 	return useMutation({

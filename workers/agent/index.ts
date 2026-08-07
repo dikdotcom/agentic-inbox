@@ -107,6 +107,17 @@ async function getSystemPrompt(env: Env, mailboxId: string): Promise<string> {
 	return DEFAULT_SYSTEM_PROMPT;
 }
 
+/** Reads the mailbox R2 settings (mirrors getSystemPrompt's read). */
+async function getMailboxSettings(env: Env, mailboxId: string): Promise<Record<string, unknown> | null> {
+	try {
+		const obj = await env.BUCKET.get(`mailboxes/${mailboxId}.json`);
+		if (obj) return await obj.json<Record<string, unknown>>();
+	} catch {
+		// ignore
+	}
+	return null;
+}
+
 function createEmailTools(env: Env, mailboxId: string) {
 	return {
 		list_emails: defineTool({
@@ -334,6 +345,14 @@ export class EmailAgent extends AIChatAgent<any> {
 		threadId: string;
 	}) {
 		const env = this.env as Env;
+
+		// Respect per-mailbox auto-draft toggle (Settings → AI Agent).
+		const mailboxSettings = await getMailboxSettings(env, emailData.mailboxId);
+		if (mailboxSettings && mailboxSettings.autoDraft === false) {
+			console.warn("Auto-draft disabled for mailbox, skipping:", emailData.mailboxId);
+			return { skipped: true, reason: "autoDraft disabled" };
+		}
+
 		const workersai = createWorkersAI({ binding: env.AI });
 		const tools = createEmailTools(env, emailData.mailboxId);
 		const systemPrompt = await getSystemPrompt(env, emailData.mailboxId);

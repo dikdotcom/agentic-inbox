@@ -20,12 +20,14 @@ export default function SettingsRoute() {
 
 	const [displayName, setDisplayName] = useState("");
 	const [agentPrompt, setAgentPrompt] = useState("");
+	const [autoDraft, setAutoDraft] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
 		if (mailbox) {
 			setDisplayName(mailbox.settings?.fromName || mailbox.name || "");
 			setAgentPrompt(mailbox.settings?.agentSystemPrompt || "");
+			setAutoDraft((mailbox.settings as Record<string, unknown>)?.autoDraft !== false);
 		}
 	}, [mailbox]);
 
@@ -36,6 +38,7 @@ export default function SettingsRoute() {
 			...mailbox.settings,
 			fromName: displayName,
 			agentSystemPrompt: agentPrompt.trim() || undefined,
+			autoDraft,
 		};
 		try {
 			await updateMailboxMutation.mutateAsync({ mailboxId, settings });
@@ -124,6 +127,22 @@ export default function SettingsRoute() {
 						The prompt is sent as the system message to the AI model.
 						It controls the agent's personality, writing style, and behavior rules.
 					</p>
+					<div className="mt-4 flex items-center justify-between gap-4 border-t border-kumo-line pt-4">
+						<div>
+							<p className="text-sm text-kumo-default">Auto-draft on new email</p>
+							<p className="text-xs text-kumo-subtle mt-0.5">
+								Let the agent automatically draft a reply when a new email arrives.
+								Turn off to review each email manually.
+							</p>
+						</div>
+						<input
+							type="checkbox"
+							checked={autoDraft}
+							onChange={(e) => setAutoDraft(e.target.checked)}
+							className="h-4 w-4 shrink-0 accent-[#c8a44e]"
+							aria-label="Auto-draft on new email"
+						/>
+					</div>
 				</div>
 
 				{/* Save */}

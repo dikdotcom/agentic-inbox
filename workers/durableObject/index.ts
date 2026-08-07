@@ -560,6 +560,28 @@ export class MailboxDO extends DurableObject<Env> {
 		return emailAttachments;
 	}
 
+	/**
+	 * Delete every email in a thread at once (not just one), returning all
+	 * attachments across the deleted emails so the caller can clean up R2.
+	 */
+	async deleteEmailsByThread(threadId: string) {
+		const threadEmails = this.db
+			.select({ id: schema.emails.id })
+			.from(schema.emails)
+			.where(eq(schema.emails.thread_id, threadId))
+			.all();
+		if (!threadEmails || threadEmails.length === 0) return null;
+
+		const allAttachments: { id: string; filename: string; emailId: string }[] = [];
+		for (const e of threadEmails) {
+			const atts = await this.deleteEmail(e.id);
+			if (atts?.length) {
+				for (const a of atts) allAttachments.push({ ...a, emailId: e.id });
+			}
+		}
+		return allAttachments;
+	}
+
 	async getAttachment(id: string) {
 		return (
 			this.db
