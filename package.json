@@ -30,6 +30,7 @@
 		"@cloudflare/ai-chat": "^0.1.8",
 		"@cloudflare/kumo": "^1.13.0",
 		"@fontsource/dm-mono": "^5.3.0",
+		"@fontsource/plus-jakarta-sans": "^5.3.0",
 		"@fontsource/source-serif-4": "^5.3.0",
 		"@fontsource/syne": "^5.3.0",
 		"@phosphor-icons/react": "^2.1.10",

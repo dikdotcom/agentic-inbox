@@ -3,11 +3,11 @@
 @import "tailwindcss";
 
 /* Self-hosted fonts (no CDN hotlinking) */
-@import "@fontsource/syne/700.css";
-@import "@fontsource/syne/800.css";
-@import "@fontsource/dm-mono/300.css";
-@import "@fontsource/dm-mono/400.css";
-@import "@fontsource/dm-mono/500.css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/plus-jakarta-sans/800.css";
 @import "@fontsource/source-serif-4/400.css";
 @import "@fontsource/source-serif-4/600.css";
 @import "@fontsource/source-serif-4/400-italic.css";
@@ -56,12 +56,14 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.01em;
 }
 
-/* Display headings in Syne (Vmail style) */
+/* Headings also in Plus Jakarta Sans */
 h1, h2, h3, h4 {
-  font-family: "Syne", "DM Mono", ui-monospace, sans-serif;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 /* Email body text in Source Serif 4 (Vmail style) */
