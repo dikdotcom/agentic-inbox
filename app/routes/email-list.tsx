@@ -158,6 +158,19 @@ export default function EmailListRoute() {
 	} = useUIStore();
 	const [page, setPage] = useState(1);
 
+	// Search & filter state
+	const [searchInput, setSearchInput] = useState("");
+	const [filter, setFilter] = useState<"all" | "unread" | "starred">("all");
+	const [sortDirection, setSortDirection] = useState<"DESC" | "ASC">("DESC");
+	const [debouncedSearch, setDebouncedSearch] = useState("");
+	useEffect(() => {
+		const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+		return () => clearTimeout(t);
+	}, [searchInput]);
+	useEffect(() => {
+		setPage(1);
+	}, [debouncedSearch, filter]);
+
 	// Multi-select / bulk actions
 	const [selectMode, setSelectMode] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -183,23 +196,9 @@ export default function EmailListRoute() {
 		setSelectedIds(new Set());
 	}, [folder, debouncedSearch, filter]);
 
-	// Search & filter state
-	const [searchInput, setSearchInput] = useState("");
-	const [filter, setFilter] = useState<"all" | "unread" | "starred">("all");
-	const [sortDirection, setSortDirection] = useState<"DESC" | "ASC">("DESC");
-	const [debouncedSearch, setDebouncedSearch] = useState("");
-	useEffect(() => {
-		const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
-		return () => clearTimeout(t);
-	}, [searchInput]);
-	useEffect(() => {
-		setPage(1);
-	}, [debouncedSearch, filter]);
-
+	const queryClient = useQueryClient();
 	// Real-time inbox: auto-refresh + notify when new mail arrives
 	useRealtime(mailboxId);
-
-	const queryClient = useQueryClient();
 	const updateEmail = useUpdateEmail();
 	const moveEmailMut = useMoveEmail();
 	const markThreadRead = useMarkThreadRead();
@@ -451,7 +450,7 @@ export default function EmailListRoute() {
 						</button>
 						<div className="ml-auto flex items-center gap-2">
 							<Button
-								variant="danger"
+								variant="destructive"
 								size="sm"
 								icon={<TrashIcon size={14} />}
 								disabled={selectedIds.size === 0}
