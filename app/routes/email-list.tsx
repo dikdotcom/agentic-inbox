@@ -268,17 +268,24 @@ export default function EmailListRoute() {
       });
   };
 
+  const isTrashFolder = folder === Folders.TRASH;
+
   const handleDelete = (e: React.MouseEvent, emailId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (mailboxId) {
-      const confirmed = window.confirm(
-        "Are you sure you want to delete this email?",
-      );
-      if (!confirmed) return;
+    if (!mailboxId) return;
+    const confirmed = window.confirm(
+      isTrashFolder
+        ? "Permanently delete this email from Trash?"
+        : "Move this email to Trash?",
+    );
+    if (!confirmed) return;
+    if (isTrashFolder) {
       deleteEmail.mutate({ mailboxId, id: emailId });
-      if (selectedEmailId === emailId) closePanel();
+    } else {
+      moveEmailMut.mutate({ mailboxId, id: emailId, folderId: Folders.TRASH });
     }
+    if (selectedEmailId === emailId) closePanel();
   };
 
   // Swipe actions (Gmail-style)
@@ -292,18 +299,16 @@ export default function EmailListRoute() {
     startCompose({ mode: "reply", originalEmail: email });
   };
 
-  // Bulk delete of every selected email
+  // Bulk delete: move to Trash (soft) unless already in Trash (permanent)
   const handleBulkDelete = () => {
     if (!mailboxId || selectedIds.size === 0) return;
     const count = selectedIds.size;
-    if (
-      !window.confirm(
-        `Delete ${count} selected email${count !== 1 ? "s" : ""}?`,
-      )
-    )
+    const action = isTrashFolder ? "permanently delete" : "move to Trash";
+    if (!window.confirm(`${action} ${count} selected email${count !== 1 ? "s" : ""}?`))
       return;
     for (const id of selectedIds) {
-      deleteEmail.mutate({ mailboxId, id });
+      if (isTrashFolder) deleteEmail.mutate({ mailboxId, id });
+      else moveEmailMut.mutate({ mailboxId, id, folderId: Folders.TRASH });
       if (selectedEmailId === id) closePanel();
     }
     exitSelectMode();

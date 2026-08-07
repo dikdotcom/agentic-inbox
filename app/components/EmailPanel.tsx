@@ -90,7 +90,14 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 
 	const toggleStar = () => { if (mailboxId) updateEmail.mutate({ mailboxId, id: email.id, data: { starred: !email.starred } }); };
 	const handleMove = (folderId: string) => { if (mailboxId) { moveEmailMut.mutate({ mailboxId, id: email.id, folderId }); closePanel(); } };
-	const handleDelete = () => { if (mailboxId) { if (!window.confirm("Are you sure you want to delete this email?")) return; deleteEmailMut.mutate({ mailboxId, id: email.id }); closePanel(); } };
+	const handleDelete = () => {
+		if (!mailboxId) return;
+		const isTrash = folder === Folders.TRASH;
+		if (!window.confirm(isTrash ? "Permanently delete this email from Trash?" : "Move this email to Trash?")) return;
+		if (isTrash) deleteEmailMut.mutate({ mailboxId, id: email.id });
+		else moveEmailMut.mutate({ mailboxId, id: email.id, folderId: Folders.TRASH });
+		closePanel();
+	};
 	const handleDeleteThread = () => { if (mailboxId && email.thread_id) { if (!window.confirm("Delete this entire conversation (all replies in this thread)?")) return; deleteThreadMut.mutate({ mailboxId, threadId: email.thread_id }); toastManager.add({ title: "Conversation deleted" }); closePanel(); } };
 
 	const handleEditDraft = (draftMsg?: Email) => {
