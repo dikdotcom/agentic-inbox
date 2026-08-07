@@ -130,6 +130,30 @@ app.get("/api/v1/mailboxes/:mailboxId", async (c) => {
 	return c.json({ id: mailboxId, name: mailboxId, email: mailboxId, settings: await obj.json() });
 });
 
+// Unified inbox: merge inboxes of every mailbox the user owns
+app.get("/api/v1/unified/emails", async (c) => {
+	const usersStub = c.env.USERS.get(c.env.USERS.idFromName("primary"));
+	const owned = await usersStub.listMailboxesForUser(c.var.user.id);
+	const ownedSet = new Set(owned);
+	const all = await listMailboxes(c.env.BUCKET);
+	const mine = all.filter((m) => ownedSet.has(m.id)).map((m) => m.id);
+	const page = Math.max(intQuery(c, "page") || 1, 1);
+	const limit = Math.min(Math.max(intQuery(c, "limit") || 50, 1), 100);
+	const perMailbox = Math.max(60, limit * 3);
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const allEmails: any[] = [];
+	for (const id of mine) {
+		const stub = c.env.MAILBOX.get(c.env.MAILBOX.idFromName(id));
+		const emails = await stub.getEmails({ folder: "inbox", limit: perMailbox });
+		for (const e of emails) allEmails.push({ ...e, mailbox: id });
+	}
+	allEmails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+	const totalCount = allEmails.length;
+	const start = (page - 1) * limit;
+	return c.json({ emails: allEmails.slice(start, start + limit), totalCount });
+});
+
 app.put("/api/v1/mailboxes/:mailboxId", async (c) => {
 	const mailboxId = c.req.param("mailboxId")!;
 	const { settings } = (await c.req.json()) as { settings: Record<string, unknown> };
@@ -160,6 +184,9 @@ app.get("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 	const limit = intQuery(c, "limit");
 	const sortColumn = c.req.query("sortColumn") as any;
 	const sortDirection = c.req.query("sortDirection") as "ASC" | "DESC" | undefined;
+	const search = c.req.query("search");
+	const starred = boolQuery(c, "starred");
+	const unread = boolQuery(c, "unread");
 	const stub = c.var.mailboxStub;
 
 	if (threaded && folder) {
@@ -167,9 +194,9 @@ app.get("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 		const totalCount = await (stub as any).countThreadedEmails(folder);
 		return c.json({ emails, totalCount });
 	}
-	const emails = await stub.getEmails({ folder, thread_id, page, limit, sortColumn, sortDirection });
+	const emails = await stub.getEmails({ folder, thread_id, page, limit, sortColumn, sortDirection, search, starred, unread });
 	if (folder) {
-		const totalCount = await stub.countEmails({ folder, thread_id });
+		const totalCount = await stub.countEmails({ folder, thread_id, search, starred, unread });
 		return c.json({ emails, totalCount });
 	}
 	return c.json(emails);
@@ -425,11 +452,62 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 		thread_id: threadId, message_id: originalMessageId, raw_headers: JSON.stringify(parsedEmail.headers),
 	}, attachmentData);
 
+	// ── Forwarding & auto-reply (from mailbox settings) ──────────────
+	const mailboxSettings = await env.BUCKET
+		.get(`mailboxes/${mailboxId}.json`)
+		.then((o) => (o ? (o.json<Record<string, unknown>>() as Promise<Record<string, unknown>>) : null))
+		.catch(() => null);
+	if (mailboxSettings) {
+		const fromName = (mailboxSettings.fromName as string) || mailboxId;
+		const senderAddr = (parsedEmail.from?.address || "").toLowerCase();
+		const headerList = (parsedEmail.headers || []) as { name?: string; value?: string }[];
+		const hasAutoHeader =
+			headerList.some((h) => String(h.value || "").toLowerCase().includes("auto-submitted")) ||
+			headerList.some((h) => String(h.name || "").toLowerCase() === "x-autoreply") ||
+			headerList.some((h) => String(h.name || "").toLowerCase() === "list-unsubscribe");
+
+		// Forwarding: relay the original message to the configured address
+		const fwd = mailboxSettings.forwarding as { enabled?: boolean; email?: string } | undefined;
+		if (fwd?.enabled && fwd.email && !hasAutoHeader) {
+			ctx.waitUntil(
+				sendEmail(env.EMAIL, {
+					to: fwd.email,
+					from: { email: mailboxId, name: fromName },
+					subject: `Fwd: ${parsedEmail.subject || "(no subject)"}`,
+					html: parsedEmail.html || undefined,
+					text: parsedEmail.text || undefined,
+				}).catch((e) => console.error("Forward failed:", (e as Error).message)),
+			);
+		}
+
+		// Auto-reply: one-shot autoresponder, never loops
+		const auto = mailboxSettings.autoReply as { enabled?: boolean; subject?: string; message?: string } | undefined;
+		if (auto?.enabled && auto.message && senderAddr && senderAddr !== mailboxId && !hasAutoHeader) {
+			ctx.waitUntil(
+				sendEmail(env.EMAIL, {
+					to: senderAddr,
+					from: { email: mailboxId, name: fromName },
+					subject: auto.subject?.trim() || `Re: ${parsedEmail.subject || ""}`,
+					text: auto.message,
+					headers: { "Auto-Submitted": "auto-replied", "X-Auto-Reply": "yes", Precedence: "bulk" },
+				}).catch((e) => console.error("Auto-reply failed:", (e as Error).message)),
+			);
+		}
+	}
+
 	const agentStub = env.EMAIL_AGENT.get(env.EMAIL_AGENT.idFromName(mailboxId));
 	ctx.waitUntil(agentStub.fetch(new Request("https://agents/onNewEmail", {
 		method: "POST", headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ mailboxId, emailId: messageId, sender: (parsedEmail.from?.address || "").toLowerCase(), subject: parsedEmail.subject || "", threadId }),
 	})).catch((e) => console.error("Auto-draft trigger failed:", (e as Error).message)));
+
+	// Notify realtime hub so open clients refresh instantly
+	const hubStub = env.REALTIME.get(env.REALTIME.idFromName("hub"));
+	ctx.waitUntil(
+		hubStub
+			.fetch(new Request("https://realtime/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mailboxId }) }))
+			.catch((e) => console.error("Realtime notify failed:", (e as Error).message)),
+	);
 }
 
 export { app, receiveEmail };

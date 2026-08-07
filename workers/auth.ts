@@ -128,6 +128,39 @@ function isPublicPath(path: string): boolean {
 	);
 }
 
+// ── Login rate limiting (brute-force protection) ────────────────────
+// In-memory per-isolate counters. Good enough to blunt brute force,
+// even though each isolate keeps its own view (distributed attackers
+// would need many IPs/isolates to get around it).
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function clientIp(c: Context): string {
+	return c.req.header("cf-connecting-ip") || c.req.header("x-real-ip") || "unknown";
+}
+
+function checkLoginRateLimit(c: Context): Response | null {
+	const now = Date.now();
+	for (const [k, v] of loginAttempts) {
+		if (now > v.resetAt) loginAttempts.delete(k);
+	}
+	const entry = loginAttempts.get(clientIp(c));
+	if (entry && now < entry.resetAt && entry.count >= LOGIN_MAX_ATTEMPTS) {
+		return c.json({ error: "Too many attempts. Please try again later." }, 429);
+	}
+	return null;
+}
+
+function recordLoginFailure(c: Context): void {
+	const ip = clientIp(c);
+	const now = Date.now();
+	const entry = loginAttempts.get(ip) ?? { count: 0, resetAt: now + LOGIN_WINDOW_MS };
+	entry.count += 1;
+	entry.resetAt = now + LOGIN_WINDOW_MS;
+	loginAttempts.set(ip, entry);
+}
+
 /**
  * Replaces Cloudflare Access as the global gate.
  * - Valid session cookie -> set c.var.user and continue.
@@ -240,12 +273,21 @@ authRoutes.post("/login", async (c) => {
 	const { email, password } = parsed.data;
 	const normalized = email.toLowerCase();
 
+	const rateLimit = checkLoginRateLimit(c);
+	if (rateLimit) return rateLimit;
+
 	const usersStub = c.env.USERS.get(c.env.USERS.idFromName("primary"));
 	const user = await usersStub.getUserByEmail(normalized);
-	if (!user) return c.json({ error: "Invalid email or password" }, 401);
+	if (!user) {
+		recordLoginFailure(c);
+		return c.json({ error: "Invalid email or password" }, 401);
+	}
 
 	const ok = await verifyPassword(password, user.password_hash);
-	if (!ok) return c.json({ error: "Invalid email or password" }, 401);
+	if (!ok) {
+		recordLoginFailure(c);
+		return c.json({ error: "Invalid email or password" }, 401);
+	}
 
 	const admins = (c.env.ADMIN_EMAILS ?? "").split(",").map((a) => a.trim().toLowerCase()).filter(Boolean);
 	if (admins.includes(normalized)) {

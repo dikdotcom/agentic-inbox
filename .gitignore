@@ -17,3 +17,7 @@ opencode.jsonc
 skills-lock.json
 .DS_Store
 worker-configuration.d.ts
+
+# Session secret recovery backup (never commit)
+.session-secrets.txt
+

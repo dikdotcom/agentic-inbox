@@ -137,6 +137,8 @@ const api = {
 	// Emails
 	listEmails: (mailboxId: string, params: Record<string, string>, opts?: { signal?: AbortSignal }) =>
 		get<EmailListResponse | Email[]>(`/api/v1/mailboxes/${mailboxId}/emails`, { params, signal: opts?.signal }),
+	unifiedEmails: (params: Record<string, string>, opts?: { signal?: AbortSignal }) =>
+		get<EmailListResponse>(`/api/v1/unified/emails`, { params, signal: opts?.signal }),
 	sendEmail: (mailboxId: string, email: unknown) =>
 		post<void>(`/api/v1/mailboxes/${mailboxId}/emails`, email),
 	getEmail: (mailboxId: string, id: string, opts?: { signal?: AbortSignal }) =>

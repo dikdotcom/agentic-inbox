@@ -15,6 +15,7 @@ export { MailboxDO } from "./durableObject";
 export { EmailAgent } from "./agent";
 export { EmailMCP } from "./mcp";
 export { UsersDO } from "./usersDO";
+export { RealtimeHub } from "./realtime";
 
 declare module "react-router" {
 	export interface AppLoadContext {
@@ -77,6 +78,12 @@ app.all("/agents/*", async (c) => {
 	const response = await routeAgentRequest(c.req.raw, c.env);
 	if (response) return response;
 	return c.text("Agent not found", 404);
+});
+
+// Realtime inbox notifications (WebSocket hub)
+app.get("/api/v1/ws", (c) => {
+	const hub = c.env.REALTIME.get(c.env.REALTIME.idFromName("hub"));
+	return hub.fetch(c.req.raw);
 });
 
 // React Router catch-all: serves the SPA for all non-API routes

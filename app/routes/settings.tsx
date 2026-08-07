@@ -21,13 +21,24 @@ export default function SettingsRoute() {
 	const [displayName, setDisplayName] = useState("");
 	const [agentPrompt, setAgentPrompt] = useState("");
 	const [autoDraft, setAutoDraft] = useState(true);
+	const [fwdEnabled, setFwdEnabled] = useState(false);
+	const [fwdEmail, setFwdEmail] = useState("");
+	const [autoEnabled, setAutoEnabled] = useState(false);
+	const [autoSubject, setAutoSubject] = useState("");
+	const [autoMessage, setAutoMessage] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
 		if (mailbox) {
+			const s = mailbox.settings as Record<string, any> | undefined;
 			setDisplayName(mailbox.settings?.fromName || mailbox.name || "");
 			setAgentPrompt(mailbox.settings?.agentSystemPrompt || "");
-			setAutoDraft((mailbox.settings as Record<string, unknown>)?.autoDraft !== false);
+			setAutoDraft(s?.autoDraft !== false);
+			setFwdEnabled(Boolean(s?.forwarding?.enabled));
+			setFwdEmail(String(s?.forwarding?.email ?? ""));
+			setAutoEnabled(Boolean(s?.autoReply?.enabled));
+			setAutoSubject(String(s?.autoReply?.subject ?? ""));
+			setAutoMessage(String(s?.autoReply?.message ?? ""));
 		}
 	}, [mailbox]);
 
@@ -39,6 +50,8 @@ export default function SettingsRoute() {
 			fromName: displayName,
 			agentSystemPrompt: agentPrompt.trim() || undefined,
 			autoDraft,
+			forwarding: { enabled: fwdEnabled, email: fwdEmail.trim() },
+			autoReply: { enabled: autoEnabled, subject: autoSubject.trim(), message: autoMessage.trim() },
 		};
 		try {
 			await updateMailboxMutation.mutateAsync({ mailboxId, settings });
@@ -142,6 +155,68 @@ export default function SettingsRoute() {
 							className="h-4 w-4 shrink-0 accent-[#c8a44e]"
 							aria-label="Auto-draft on new email"
 						/>
+					</div>
+				</div>
+
+				{/* Forwarding */}
+				<div className="rounded-lg border border-kumo-line bg-kumo-base p-5">
+					<div className="flex items-center justify-between mb-1">
+						<span className="text-sm font-medium text-kumo-default">Forwarding</span>
+						<input
+							type="checkbox"
+							checked={fwdEnabled}
+							onChange={(e) => setFwdEnabled(e.target.checked)}
+							className="h-4 w-4 accent-[#c8a44e]"
+							aria-label="Enable forwarding"
+						/>
+					</div>
+					<p className="text-xs text-kumo-subtle mb-3">
+						Relay every incoming email to another address.
+					</p>
+					<Input
+						label="Forward to"
+						type="email"
+						placeholder="you@elsewhere.com"
+						value={fwdEmail}
+						disabled={!fwdEnabled}
+						onChange={(e) => setFwdEmail(e.target.value)}
+					/>
+				</div>
+
+				{/* Auto-reply */}
+				<div className="rounded-lg border border-kumo-line bg-kumo-base p-5">
+					<div className="flex items-center justify-between mb-1">
+						<span className="text-sm font-medium text-kumo-default">Auto-reply</span>
+						<input
+							type="checkbox"
+							checked={autoEnabled}
+							onChange={(e) => setAutoEnabled(e.target.checked)}
+							className="h-4 w-4 accent-[#c8a44e]"
+							aria-label="Enable auto-reply"
+						/>
+					</div>
+					<p className="text-xs text-kumo-subtle mb-3">
+						Automatically reply to incoming email (skips other auto-responders to avoid loops).
+					</p>
+					<div className="space-y-3">
+						<Input
+							label="Subject"
+							placeholder="Re: your email"
+							value={autoSubject}
+							disabled={!autoEnabled}
+							onChange={(e) => setAutoSubject(e.target.value)}
+						/>
+						<div>
+							<label className="block text-xs font-medium text-kumo-default mb-1">Message</label>
+							<textarea
+								value={autoMessage}
+								disabled={!autoEnabled}
+								onChange={(e) => setAutoMessage(e.target.value)}
+								placeholder="Thanks for your email — I'll get back to you soon."
+								rows={4}
+								className="w-full resize-y rounded-lg border border-kumo-line bg-kumo-recessed px-3 py-2 text-xs text-kumo-default placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-ring font-mono leading-relaxed"
+							/>
+						</div>
 					</div>
 				</div>
 

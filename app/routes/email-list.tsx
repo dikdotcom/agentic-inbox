@@ -35,6 +35,7 @@ import {
 import { useFolders } from "~/queries/folders";
 import { queryKeys } from "~/queries/keys";
 import { useUIStore } from "~/hooks/useUIStore";
+import { useRealtime } from "~/hooks/useRealtime";
 import type { Email } from "~/types";
 
 const PAGE_SIZE = 25;
@@ -157,6 +158,22 @@ export default function EmailListRoute() {
 	} = useUIStore();
 	const [page, setPage] = useState(1);
 
+	// Search & filter state
+	const [searchInput, setSearchInput] = useState("");
+	const [filter, setFilter] = useState<"all" | "unread" | "starred">("all");
+	const [sortDirection, setSortDirection] = useState<"DESC" | "ASC">("DESC");
+	const [debouncedSearch, setDebouncedSearch] = useState("");
+	useEffect(() => {
+		const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+		return () => clearTimeout(t);
+	}, [searchInput]);
+	useEffect(() => {
+		setPage(1);
+	}, [debouncedSearch, filter]);
+
+	// Real-time inbox: auto-refresh + notify when new mail arrives
+	useRealtime(mailboxId);
+
 	const queryClient = useQueryClient();
 	const updateEmail = useUpdateEmail();
 	const moveEmailMut = useMoveEmail();
@@ -168,8 +185,12 @@ export default function EmailListRoute() {
 			folder: folder || "",
 			page: String(page),
 			limit: String(PAGE_SIZE),
+			...(debouncedSearch ? { search: debouncedSearch } : {}),
+			...(filter === "unread" ? { unread: "true" } : {}),
+			...(filter === "starred" ? { starred: "true" } : {}),
+			sortDirection,
 		}),
-		[folder, page],
+		[folder, page, debouncedSearch, filter, sortDirection],
 	);
 
 	const {
@@ -349,6 +370,60 @@ export default function EmailListRoute() {
 							/>
 						</Tooltip>
 					</div>
+				</div>
+
+				{/* Search & filters */}
+				<div className="flex items-center gap-2 px-4 py-2 border-b border-kumo-line shrink-0 md:px-5">
+					<div className="relative flex-1">
+						<input
+							type="search"
+							value={searchInput}
+							onChange={(e) => setSearchInput(e.target.value)}
+							placeholder="Search mail…"
+							className="w-full rounded-lg border border-kumo-line bg-kumo-recessed px-3 py-1.5 text-xs text-kumo-default placeholder:text-kumo-subtle focus:outline-none focus:ring-1 focus:ring-kumo-ring"
+						/>
+						{searchInput && (
+							<button
+								type="button"
+								onClick={() => setSearchInput("")}
+								className="absolute right-2 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-default"
+								aria-label="Clear search"
+							>
+								×
+							</button>
+						)}
+					</div>
+					<button
+						type="button"
+						onClick={() => setFilter(filter === "unread" ? "all" : "unread")}
+						className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+							filter === "unread"
+								? "bg-kumo-brand text-kumo-recessed"
+								: "bg-kumo-fill text-kumo-subtle hover:text-kumo-default"
+						}`}
+					>
+						Unread
+					</button>
+					<button
+						type="button"
+						onClick={() => setFilter(filter === "starred" ? "all" : "starred")}
+						className={`shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+							filter === "starred"
+								? "bg-kumo-brand text-kumo-recessed"
+								: "bg-kumo-fill text-kumo-subtle hover:text-kumo-default"
+						}`}
+					>
+						<StarIcon size={12} weight={filter === "starred" ? "fill" : "regular"} />
+						Starred
+					</button>
+					<button
+						type="button"
+						onClick={() => setSortDirection(sortDirection === "DESC" ? "ASC" : "DESC")}
+						className="shrink-0 text-[11px] text-kumo-subtle hover:text-kumo-default"
+						title="Toggle sort order"
+					>
+						{sortDirection === "DESC" ? "Newest" : "Oldest"}
+					</button>
 				</div>
 
 				{/* Email rows */}

@@ -69,6 +69,9 @@ interface GetEmailsOptions {
 	limit?: number;
 	sortColumn?: SortColumn;
 	sortDirection?: "ASC" | "DESC";
+	search?: string;
+	starred?: boolean;
+	unread?: boolean;
 }
 
 interface EmailData {
@@ -119,6 +122,9 @@ export class MailboxDO extends DurableObject<Env> {
 			limit: rawLimit = 25,
 			sortColumn: rawSortColumn = "date",
 			sortDirection = "DESC",
+			search,
+			starred,
+			unread,
 		} = options;
 
 		// Cap pagination limit to prevent unbounded queries
@@ -140,6 +146,18 @@ export class MailboxDO extends DurableObject<Env> {
 		}
 		if (thread_id) {
 			conditions.push(eq(schema.emails.thread_id, thread_id));
+		}
+		if (search && search.trim()) {
+			const q = `%${search.trim()}%`;
+			conditions.push(
+				sql`(${schema.emails.subject} LIKE ${q} OR ${schema.emails.sender} LIKE ${q} OR ${schema.emails.recipient} LIKE ${q} OR ${schema.emails.body} LIKE ${q})`,
+			);
+		}
+		if (starred) {
+			conditions.push(eq(schema.emails.starred, 1));
+		}
+		if (unread) {
+			conditions.push(eq(schema.emails.read, 0));
 		}
 
 		const orderCol = SORT_COLUMN_MAP[sortColumn];
@@ -179,8 +197,8 @@ export class MailboxDO extends DurableObject<Env> {
 	/**
 	 * Count total emails matching the given filters (for pagination).
 	 */
-	async countEmails(options: { folder?: string; thread_id?: string } = {}) {
-		const { folder, thread_id } = options;
+	async countEmails(options: { folder?: string; thread_id?: string; search?: string; starred?: boolean; unread?: boolean } = {}) {
+		const { folder, thread_id, search, starred, unread } = options;
 		const conditions: string[] = [];
 		const params: (string | number)[] = [];
 
@@ -194,6 +212,20 @@ export class MailboxDO extends DurableObject<Env> {
 		if (thread_id) {
 			conditions.push(`thread_id = ?${params.length + 1}`);
 			params.push(thread_id);
+		}
+
+		if (search && search.trim()) {
+			const q = `%${search.trim()}%`;
+			conditions.push(`(subject LIKE ?${params.length + 1} OR sender LIKE ?${params.length + 2} OR recipient LIKE ?${params.length + 3} OR body LIKE ?${params.length + 4})`);
+			params.push(q, q, q, q);
+		}
+		if (starred) {
+			conditions.push(`starred = ?${params.length + 1}`);
+			params.push(1);
+		}
+		if (unread) {
+			conditions.push(`read = ?${params.length + 1}`);
+			params.push(0);
 		}
 
 		const where =

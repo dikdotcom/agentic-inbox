@@ -12,7 +12,7 @@ import {
 	Text,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
-import { EnvelopeIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { EnvelopeIcon, PlusIcon, TrashIcon, TrayIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router";
@@ -168,6 +168,25 @@ export default function HomeRoute() {
 					</div>
 				) : accounts.length > 0 ? (
 					<div className="rounded-xl border border-kumo-line bg-kumo-base overflow-hidden">
+						<RouterLink
+							to="/unified"
+							className={`group flex items-center gap-4 px-5 py-4 no-underline transition-colors hover:bg-kumo-tint ${
+								"border-b border-kumo-line"
+							}`}
+						>
+							<div
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+								style={{ background: "linear-gradient(135deg, #c8a44e, #a0833d)" }}
+							>
+								<TrayIcon size={18} weight="duotone" />
+							</div>
+							<div className="min-w-0 flex-1">
+								<div className="text-sm font-medium text-kumo-default truncate">
+									Unified Inbox
+								</div>
+								<div className="text-sm text-kumo-subtle">All your mailboxes at once</div>
+							</div>
+						</RouterLink>
 						{accounts.map((account, idx) => (
 							<RouterLink
 								key={account.id}

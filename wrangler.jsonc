@@ -49,6 +49,10 @@
 			{
 				"name": "USERS",
 				"class_name": "UsersDO"
+			},
+			{
+				"name": "REALTIME",
+				"class_name": "RealtimeHub"
 			}
 		]
 	},
@@ -76,6 +80,12 @@
 			"new_sqlite_classes": [
 				"UsersDO"
 			]
-		}
+		},
+		{
+				"tag": "v5",
+				"new_sqlite_classes": [
+					"RealtimeHub"
+				]
+			}
 	]
 }
