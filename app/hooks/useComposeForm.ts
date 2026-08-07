@@ -162,6 +162,29 @@ function buildInitialComposeFields(
 	};
 }
 
+export interface ComposeAttachment {
+	id: string;
+	filename: string;
+	mimetype: string;
+	size: number;
+	content: string; // raw base64
+	disposition: "attachment" | "inline";
+	contentId?: string;
+}
+
+function fileToBase64(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => {
+			const result = String(reader.result || "");
+			const comma = result.indexOf(",");
+			resolve(comma >= 0 ? result.slice(comma + 1) : result);
+		};
+		reader.onerror = () => reject(reader.error);
+		reader.readAsDataURL(file);
+	});
+}
+
 export function useComposeForm(mailboxId?: string, _folder?: string) {
 	const toastManager = useKumoToastManager();
 	const { composeOptions, closePanel, closeCompose } = useUIStore();
@@ -181,6 +204,7 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 	const [error, setError] = useState<string | null>(null);
 	const [isSavingDraft, setIsSavingDraft] = useState(false);
 	const [isSending, setIsSending] = useState(false);
+	const [attachments, setAttachments] = useState<ComposeAttachment[]>([]);
 	const lastInitializedOptionsRef = useRef<typeof composeOptions | null>(null);
 	const isDraftEdit = !!composeOptions.draftEmail;
 
@@ -208,6 +232,41 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 		setSubject(initialFields.subject);
 		setBody(initialFields.body);
 	}, [composeOptions, currentMailbox?.email, sigBlock]);
+
+	const addAttachments = async (files: FileList | File[] | null) => {
+		if (!files || files.length === 0) return;
+		for (const file of Array.from(files)) {
+			const id = typeof crypto !== "undefined" && "randomUUID" in crypto
+				? crypto.randomUUID()
+				: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+			const isImage = file.type.startsWith("image/");
+			const content = await fileToBase64(file);
+			const att: ComposeAttachment = {
+				id,
+				filename: file.name,
+				mimetype: file.type || "application/octet-stream",
+				size: file.size,
+				content,
+				disposition: isImage ? "inline" : "attachment",
+				contentId: isImage ? id : undefined,
+			};
+			setAttachments((prev) => [...prev, att]);
+			if (isImage) {
+				setBody(
+					(prev) =>
+						`${prev}<p><img src="cid:${id}" alt="${file.name.replace(/"/g, "")}" style="max-width:100%;height:auto;border-radius:6px;"></p>`,
+				);
+			}
+		}
+	};
+
+	const removeAttachment = (id: string) => {
+		setAttachments((prev) => prev.filter((a) => a.id !== id));
+		// Remove the inline <img> tag contributed by an image attachment
+		setBody((prev) =>
+			prev.replace(new RegExp(`<p><img src="cid:${id}"[^>]*></p>`, "g"), ""),
+		);
+	};
 
 	const handleSaveDraft = async () => {
 		if (!mailboxId || isSending) return; setIsSavingDraft(true); setError(null);
@@ -248,6 +307,17 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 			subject,
 			html: body,
 			text: htmlToPlainText(body),
+			...((attachments.length > 0
+				? {
+						attachments: attachments.map((a) => ({
+							content: a.content,
+							filename: a.filename,
+							type: a.mimetype,
+							disposition: a.disposition,
+							...(a.contentId ? { contentId: a.contentId } : {}),
+						})),
+				  }
+				: {}) as Record<string, unknown>),
 		};
 		const draftId = composeOptions.draftEmail?.id; const mode = composeOptions.mode; const originalId = composeOptions.originalEmail?.id || composeOptions.draftEmail?.in_reply_to;
 		setIsSending(true); toastManager.add({ title: "Sending email..." });
@@ -262,5 +332,5 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 		finally { setIsSending(false); }
 	};
 
-	return { to, setTo, cc, setCc, bcc, setBcc, showCcBcc, setShowCcBcc, subject, setSubject, body, setBody, error, setError, isSavingDraft, isSending, formTitle, handleSaveDraft, handleSend, closeCompose, closePanel };
+	return { to, setTo, cc, setCc, bcc, setBcc, showCcBcc, setShowCcBcc, subject, setSubject, body, setBody, error, setError, isSavingDraft, isSending, formTitle, handleSaveDraft, handleSend, closeCompose, closePanel, attachments, addAttachments, removeAttachment };
 }

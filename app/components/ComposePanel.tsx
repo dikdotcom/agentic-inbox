@@ -3,9 +3,11 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { Banner, Button, Input } from "@cloudflare/kumo";
-import { FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
+import { FloppyDiskIcon, PaperclipIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
+import { useRef } from "react";
 import { useParams } from "react-router";
 import { useComposeForm } from "~/hooks/useComposeForm";
+import { formatBytes } from "~/lib/utils";
 import RichTextEditor from "./RichTextEditor";
 
 export default function ComposePanel() {
@@ -32,10 +34,15 @@ export default function ComposePanel() {
 		isSending,
 		formTitle,
 		handleSaveDraft,
-		handleSend,
-		closeCompose,
-		closePanel,
-	} = useComposeForm(mailboxId, folder);
+			handleSend,
+			closeCompose,
+			closePanel,
+			attachments,
+			addAttachments,
+			removeAttachment,
+		} = useComposeForm(mailboxId, folder);
+
+			const fileInputRef = useRef<HTMLInputElement>(null);
 
 	return (
 		<div className="flex flex-col h-full bg-kumo-base">
@@ -145,6 +152,49 @@ export default function ComposePanel() {
 							value={body}
 							onChange={setBody}
 						/>
+					</div>
+
+					{/* Attachments */}
+					<div className="flex flex-wrap items-center gap-2">
+						<input
+							ref={fileInputRef}
+							type="file"
+							multiple
+							accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+							className="hidden"
+							onChange={(e) => {
+								addAttachments(e.target.files);
+								e.currentTarget.value = "";
+							}}
+						/>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							icon={<PaperclipIcon size={15} />}
+							onClick={() => fileInputRef.current?.click()}
+							disabled={isSending}
+						>
+							Attach
+						</Button>
+						{attachments.map((a) => (
+							<span
+								key={a.id}
+								className="inline-flex items-center gap-1.5 rounded-md border border-kumo-line bg-kumo-fill px-2 py-1 text-xs text-kumo-default"
+							>
+								<PaperclipIcon size={12} className="text-kumo-subtle shrink-0" />
+								<span className="max-w-[160px] truncate">{a.filename}</span>
+								<span className="text-kumo-subtle shrink-0">{formatBytes(a.size)}</span>
+								<button
+									type="button"
+									onClick={() => removeAttachment(a.id)}
+									className="text-kumo-subtle hover:text-kumo-danger shrink-0"
+									aria-label={`Remove ${a.filename}`}
+								>
+									<XIcon size={13} />
+								</button>
+							</span>
+						))}
 					</div>
 				</div>
 

@@ -20,10 +20,10 @@ if [ -n "$SPF" ]; then echo "$ok SPF: $SPF"; else echo "$bad SPF: missing (add T
 DMARC=$(dig +short TXT "_dmarc.$DOMAIN" | tr -d '"' | grep -i '^v=DMARC1' || true)
 if [ -n "$DMARC" ]; then echo "$ok DMARC: $DMARC"; else echo "$warn DMARC: missing (p=none first, then p=quarantine)"; fi
 
-# DKIM (try common selectors)
+# DKIM (try common Cloudflare/Google selectors incl. numbered variants)
 echo "-- DKIM --"
 found=0
-for s in default google cf2024 cf2023 cf2025 k1 s1 s2 mail smtp; do
+for s in default google cf2024 cf2024-1 cf2023 cf2023-1 cf2022 cf2022-1 cf2021 cf2021-1 cf2020 cf2020-1 k1 s1 s1-1 s2 s3 mail smtp dkim selector1 selector2; do
   val=$(dig +short TXT "${s}._domainkey.${DOMAIN}" | tr -d '"' | grep -i '^v=DKIM1' || true)
   if [ -n "$val" ]; then
     echo "$ok ${s}._domainkey present (len ${#val})"
