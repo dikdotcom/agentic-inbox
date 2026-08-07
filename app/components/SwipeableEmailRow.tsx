@@ -102,9 +102,9 @@ export default function SwipeableEmailRow({
 				</div>
 			)}
 
-			{/* Foreground row */}
+			{/* Foreground row (solid bg so the back actions stay hidden until swiped) */}
 			<div
-				className="relative z-10"
+				className="relative z-10 bg-kumo-base"
 				style={{
 					transform: `translateX(${offset}px)`,
 					transition: dragging.current
