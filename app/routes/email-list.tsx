@@ -23,11 +23,13 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { Folders } from "shared/folders";
 import { formatListDate } from "shared/dates";
 import MailboxSplitView from "~/components/MailboxSplitView";
+import SwipeableEmailRow from "~/components/SwipeableEmailRow";
 import { getSnippetText } from "~/lib/utils";
 import {
 	useDeleteEmail,
 	useEmails,
 	useMarkThreadRead,
+	useMoveEmail,
 	useUpdateEmail,
 } from "~/queries/emails";
 import { useFolders } from "~/queries/folders";
@@ -157,6 +159,7 @@ export default function EmailListRoute() {
 
 	const queryClient = useQueryClient();
 	const updateEmail = useUpdateEmail();
+	const moveEmailMut = useMoveEmail();
 	const markThreadRead = useMarkThreadRead();
 	const deleteEmail = useDeleteEmail();
 
@@ -220,6 +223,17 @@ export default function EmailListRoute() {
 			deleteEmail.mutate({ mailboxId, id: emailId });
 			if (selectedEmailId === emailId) closePanel();
 		}
+	};
+
+	// Swipe actions (Gmail-style)
+	const handleArchive = (email: Email) => {
+		if (!mailboxId) return;
+		moveEmailMut.mutate({ mailboxId, id: email.id, folderId: Folders.ARCHIVE });
+		if (selectedEmailId === email.id) closePanel();
+	};
+
+	const handleReply = (email: Email) => {
+		startCompose({ mode: "reply", originalEmail: email });
 	};
 
 	const handleRefresh = () => {
@@ -347,23 +361,59 @@ export default function EmailListRoute() {
 								const isSelected = selectedEmailId === email.id;
 								const snippet = getSnippetText(email.snippet);
 								return (
-									<div
-										key={email.id}
-										role="button"
-										tabIndex={0}
-										onClick={() => handleRowClick(email)}
-										onKeyDown={(e) => {
-											if (e.key === "Enter" || e.key === " ") {
-												e.preventDefault();
-												handleRowClick(email);
+										<SwipeableEmailRow
+											key={email.id}
+											onOpen={() => handleRowClick(email)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													handleRowClick(email);
+												}
+											}}
+											rightActions={
+												<>
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															handleArchive(email);
+														}}
+														className="flex-1 flex flex-col items-center justify-center gap-1 bg-kumo-info text-white text-[10px] uppercase tracking-wider border-0 cursor-pointer"
+													>
+														<ArchiveIcon size={20} />
+														Archive
+													</button>
+													<button
+														type="button"
+														onClick={(e) => handleDelete(e, email.id)}
+														className="flex-1 flex flex-col items-center justify-center gap-1 bg-kumo-danger text-white text-[10px] uppercase tracking-wider border-0 cursor-pointer"
+													>
+														<TrashIcon size={20} />
+														Delete
+													</button>
+												</>
 											}
-										}}
-										className={`group relative flex items-center gap-3 w-full text-left cursor-pointer transition-colors border-b border-kumo-line px-4 py-3 md:px-5 md:py-3.5 ${
-												isPanelOpen ? "md:px-4" : ""
-											} ${hasUnread(email) ? "bg-kumo-control" : ""} ${
-												isSelected ? "bg-kumo-tint" : "hover:bg-kumo-tint/60"
-											}`}
+											leftActions={
+												<button
+													type="button"
+													onClick={(e) => {
+														e.stopPropagation();
+														handleReply(email);
+													}}
+													className="flex-1 flex flex-col items-center justify-center gap-1 bg-kumo-brand text-kumo-recessed text-[10px] uppercase tracking-wider border-0 cursor-pointer"
+												>
+													<ArrowBendUpLeftIcon size={20} />
+													Reply
+												</button>
+											}
 										>
+											<div
+												className={`group relative flex items-center gap-3 w-full text-left cursor-pointer transition-colors border-b border-kumo-line px-4 py-3 md:px-5 md:py-3.5 ${
+													isPanelOpen ? "md:px-4" : ""
+												} ${hasUnread(email) ? "bg-kumo-control" : ""} ${
+													isSelected ? "bg-kumo-tint" : "hover:bg-kumo-tint/60"
+												}`}
+											>
 											{/* Unread / selected accent bar */}
 											{(isSelected || hasUnread(email)) && (
 												<div
@@ -488,8 +538,9 @@ export default function EmailListRoute() {
 											</Tooltip>
 										</div>
 									</div>
-								);
-							})}
+								</SwipeableEmailRow>
+							);
+						})}
 						</div>
 					) : (
 						<FolderEmptyState
