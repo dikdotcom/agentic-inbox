@@ -58,7 +58,10 @@ export default function SwipeableEmailRow({
 		setOffset(side === "right" ? -OPEN_OFFSET : side === "left" ? OPEN_OFFSET : 0);
 	};
 
-	const handleClick = () => {
+	const handleClick = (e: React.MouseEvent<HTMLElement>) => {
+		// Never let clicks on inner buttons (mark read/delete/etc.) bubble into
+		// "open email" — those buttons handle their own action.
+		if ((e.target as HTMLElement).closest("button")) return;
 		if (suppressedClick.current) {
 			suppressedClick.current = false;
 			return;

@@ -158,6 +158,31 @@ export default function EmailListRoute() {
 	} = useUIStore();
 	const [page, setPage] = useState(1);
 
+	// Multi-select / bulk actions
+	const [selectMode, setSelectMode] = useState(false);
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const toggleSelect = (id: string) =>
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	const selectAllIds = () => {
+		setSelectedIds(new Set(emails.map((e) => e.id)));
+	};
+	const clearSelection = () => {
+		setSelectedIds(new Set());
+	};
+	const exitSelectMode = () => {
+		setSelectedIds(new Set());
+		setSelectMode(false);
+	};
+	// When search/filter/page changes, drop stale selections
+	useEffect(() => {
+		setSelectedIds(new Set());
+	}, [folder, debouncedSearch, filter]);
+
 	// Search & filter state
 	const [searchInput, setSearchInput] = useState("");
 	const [filter, setFilter] = useState<"all" | "unread" | "starred">("all");
@@ -257,6 +282,27 @@ export default function EmailListRoute() {
 		startCompose({ mode: "reply", originalEmail: email });
 	};
 
+	// Bulk delete of every selected email
+	const handleBulkDelete = () => {
+		if (!mailboxId || selectedIds.size === 0) return;
+		const count = selectedIds.size;
+		if (!window.confirm(`Delete ${count} selected email${count !== 1 ? "s" : ""}?`)) return;
+		for (const id of selectedIds) {
+			deleteEmail.mutate({ mailboxId, id });
+			if (selectedEmailId === id) closePanel();
+		}
+		exitSelectMode();
+	};
+
+	// Row activation: in select mode we toggle, otherwise open the email
+	const handleRowActivate = (email: Email) => {
+		if (selectMode) {
+			toggleSelect(email.id);
+		} else {
+			handleRowClick(email);
+		}
+	};
+
 	const handleRefresh = () => {
 		if (mailboxId) {
 			queryClient.invalidateQueries({ queryKey: ["emails", mailboxId] });
@@ -349,6 +395,16 @@ export default function EmailListRoute() {
 								{totalCount} conversation{totalCount !== 1 ? "s" : ""}
 							</span>
 						)}
+						{!selectMode && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setSelectMode(true)}
+								disabled={emails.length === 0}
+							>
+								Select
+							</Button>
+						)}
 						<Tooltip
 							content={isRefreshing ? "Refreshing..." : "Refresh"}
 							side="bottom"
@@ -372,8 +428,50 @@ export default function EmailListRoute() {
 					</div>
 				</div>
 
+				{/* Bulk actions bar (select mode) */}
+				{selectMode && (
+					<div className="flex items-center gap-2 px-4 py-2 border-b border-kumo-line shrink-0 md:px-5">
+						<span className="text-sm font-medium text-kumo-default">
+							{selectedIds.size} selected
+						</span>
+						<button
+							type="button"
+							onClick={selectAllIds}
+							className="rounded-full bg-kumo-fill px-2.5 py-1 text-[11px] font-medium text-kumo-subtle hover:text-kumo-default"
+						>
+							All
+						</button>
+						<button
+							type="button"
+							onClick={clearSelection}
+							disabled={selectedIds.size === 0}
+							className="rounded-full bg-kumo-fill px-2.5 py-1 text-[11px] font-medium text-kumo-subtle hover:text-kumo-default disabled:opacity-40"
+						>
+							Clear
+						</button>
+						<div className="ml-auto flex items-center gap-2">
+							<Button
+								variant="danger"
+								size="sm"
+								icon={<TrashIcon size={14} />}
+								disabled={selectedIds.size === 0}
+								onClick={handleBulkDelete}
+							>
+								Delete
+							</Button>
+							<Button variant="ghost" size="sm" onClick={exitSelectMode}>
+								Done
+							</Button>
+						</div>
+					</div>
+				)}
+
 				{/* Search & filters */}
-				<div className="flex items-center gap-2 px-4 py-2 border-b border-kumo-line shrink-0 md:px-5">
+				<div
+					className={`${
+						selectMode ? "hidden" : "flex"
+					} items-center gap-2 px-4 py-2 border-b border-kumo-line shrink-0 md:px-5`}
+				>
 					<div className="relative flex-1">
 						<input
 							type="search"
@@ -438,11 +536,11 @@ export default function EmailListRoute() {
 								return (
 										<SwipeableEmailRow
 											key={email.id}
-											onOpen={() => handleRowClick(email)}
+											onOpen={() => handleRowActivate(email)}
 											onKeyDown={(e) => {
 												if (e.key === "Enter" || e.key === " ") {
 													e.preventDefault();
-													handleRowClick(email);
+													handleRowActivate(email);
 												}
 											}}
 											rightActions={
@@ -500,6 +598,18 @@ export default function EmailListRoute() {
 
 											{/* Avatar */}
 											<div className="relative shrink-0 flex items-center justify-center">
+												{selectMode && (
+													<div
+														className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border text-xs font-bold transition-colors ${
+															selectedIds.has(email.id)
+																? "border-kumo-brand bg-kumo-brand text-kumo-recessed"
+																: "border-kumo-line text-transparent"
+														}`}
+														aria-hidden
+													>
+														✓
+													</div>
+												)}
 												<div
 													className="flex h-9 w-9 items-center justify-center rounded-[10px] text-xs font-bold"
 													style={{
