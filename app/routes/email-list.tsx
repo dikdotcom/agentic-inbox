@@ -10,6 +10,7 @@ import {
 	EnvelopeOpenIcon,
 	EnvelopeSimpleIcon,
 	FileIcon,
+	GearSixIcon,
 	PaperPlaneTiltIcon,
 	PencilSimpleIcon,
 	StarIcon,
@@ -18,7 +19,7 @@ import {
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { Folders } from "shared/folders";
 import { formatListDate } from "shared/dates";
 import MailboxSplitView from "~/components/MailboxSplitView";
@@ -512,12 +513,12 @@ export default function EmailListRoute() {
 				</MailboxSplitView>
 
 			{/* Compose FAB — mobile only (Vmail style) */}
-			{!isComposing && (
+			{!isPanelOpen && (
 				<button
 					type="button"
 					onClick={() => startCompose()}
 					aria-label="Compose"
-					className="fixed bottom-6 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full border-none cursor-pointer md:hidden"
+					className="fixed bottom-20 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full border-none cursor-pointer md:hidden"
 					style={{
 						background: "linear-gradient(135deg, #c8a44e, #a0833d)",
 						boxShadow: "0 8px 24px rgba(200,164,78,0.25)",
@@ -527,6 +528,46 @@ export default function EmailListRoute() {
 					<PencilSimpleIcon size={24} weight="bold" />
 				</button>
 			)}
+
+			{/* Bottom nav — mobile only (Vmail style) */}
+			{!isPanelOpen && <MobileNav folder={folder} mailboxId={mailboxId ?? ""} />}
 		</>
+	);
+}
+
+function MobileNav({ folder, mailboxId }: { folder?: string; mailboxId: string }) {
+	const navigate = useNavigate();
+	const location = useLocation();
+
+	const items = [
+		{ key: "inbox", label: "Inbox", icon: TrayIcon, href: `/mailbox/${mailboxId}/emails/inbox` },
+		{ key: "sent", label: "Sent", icon: PaperPlaneTiltIcon, href: `/mailbox/${mailboxId}/emails/sent` },
+		{ key: "archive", label: "Archive", icon: ArchiveIcon, href: `/mailbox/${mailboxId}/emails/archive` },
+		{ key: "settings", label: "Settings", icon: GearSixIcon, href: `/mailbox/${mailboxId}/settings` },
+	];
+
+	return (
+		<nav className="fixed bottom-0 inset-x-0 z-40 flex bg-kumo-base border-t border-kumo-line pb-[env(safe-area-inset-bottom,0px)] md:hidden">
+			{items.map((item) => {
+				const active =
+					item.key === "settings"
+						? location.pathname.endsWith("/settings")
+						: folder === item.key;
+				return (
+					<button
+						type="button"
+						key={item.key}
+						onClick={() => navigate(item.href)}
+						className={
+							"flex flex-1 flex-col items-center gap-1 py-2.5 border-none bg-transparent cursor-pointer " +
+							(active ? "text-kumo-brand" : "text-kumo-inactive")
+						}
+					>
+						{item.icon({ size: 22 })}
+						<span className="text-[9px] uppercase tracking-wider">{item.label}</span>
+					</button>
+				);
+			})}
+		</nav>
 	);
 }
